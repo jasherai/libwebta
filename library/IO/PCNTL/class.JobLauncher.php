@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    IO
      * @subpackage PCNTL
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 
     Core::Load("System/Independent/Shell/class.Getopt.php");
@@ -38,11 +32,15 @@
     {
         private $ProcessName;
         
+        private $Logger;
+        
         function __construct($process_classes_folder)
         {
             $processes = @glob("{$process_classes_folder}/class.*Process.php");
             
-           $jobs = array();
+            $this->Logger = LoggerManager::getLogger('JobLauncher');
+            
+            $jobs = array();
             if (count($processes) > 0)
             {
                 foreach ($processes as $process)
@@ -66,24 +64,23 @@
                                 array_push($jobs, $job);    
                             }
                             else 
-                                Core::RaiseError("Class '{$process_name}Process' not implements in 'IProcess' interface.", E_ERROR);
+                                Core::RaiseError("Class '{$process_name}Process' doesn't implement 'IProcess' interface.", E_ERROR);
                         }
                         else 
-                            Core::RaiseError("Cannot use ReflectionAPI fro class '{$process_name}Process'", E_ERROR);
+                            Core::RaiseError("Cannot use ReflectionAPI for class '{$process_name}Process'", E_ERROR);
                     }
                     else
-                        Core::RaiseError("Class '{$process_name}Process' not exists in '{$process}'", E_ERROR);
+                        Core::RaiseError("'{$process}' does not contain definition for '{$process_name}Process'", E_ERROR);
                 }
             }
             else 
-                Core::RaiseError(_("No Job classes found in {$ProcessClassesFolder}"), E_ERROR);
+                Core::RaiseError(_("No job classes found in {$ProcessClassesFolder}"), E_ERROR);
              
             $options = array();
             foreach($jobs as $job)
                 $options[$job["name"]] = $job["description"];
 
             $options["help"] = "Print this help";
-            $options["debug"] = "Enable debug output";
                            
             $Getopt = new Getopt($options);
             $opts = $Getopt->getOptions();
@@ -94,18 +91,19 @@
                 exit();
             }
             else
-            {                
-                if ($opts[1] && $opts[1] == "debug")
-                {
-                    if (!Log::HasLogger("PCNTL"))
-                        Log::RegisterLogger("Console", "PCNTL");
-                    
-                    Log::SetDefaultLogger("PCNTL");
-                    Log::SetMask(E_ALL, "PCNTL");
-                }
-                
+            {                               
                 $this->ProcessName = $opts[0];
             }
+        }
+        
+        /**
+         * Return Process name
+         *
+         * @return string
+         */
+        function GetProcessName()
+        {
+        	return $this->ProcessName;
         }
         
         function Launch($max_chinds = 5)

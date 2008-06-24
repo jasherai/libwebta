@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    IO
      * @subpackage PCNTL
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 
 	/**
@@ -39,21 +33,30 @@
          */
         public $ProcessManager;
         
+        private $Logger;
+        
         /**
          * Constructor
          * @ignore 
          */
         function __construct() 
         {
-            if (!function_exists("pcntl_signal"))
+            $this->Logger = LoggerManager::getLogger('SignalHandler');
+        	
+        	if (!function_exists("pcntl_signal"))
                 self::RaiseError("Function pcntl_signal() not found. PCNTL must be enabled in PHP.", E_ERROR);
             
+            $this->Logger->debug("Begin add handler to signals...");
+                
             // Add default handlers
-            @pcntl_signal(SIGCHLD, array(&$this,"HandleSignals"));
-            @pcntl_signal(SIGTERM, array(&$this,"HandleSignals"));
-            @pcntl_signal(SIGSEGV, array(&$this,"HandleSignals"));
-            @pcntl_signal(SIGABRT, array(&$this,"HandleSignals"));
-            @pcntl_signal(SIGKILL, array(&$this,"HandleSignals"));
+            $res = @pcntl_signal(SIGCHLD, array(&$this,"HandleSignals"));
+            $this->Logger->debug("Handle SIGCHLD = {$res}");
+            
+            $res = @pcntl_signal(SIGTERM, array(&$this,"HandleSignals"));
+            $this->Logger->debug("Handle SIGTERM = {$res}");
+                        
+            $res = @pcntl_signal(SIGABRT, array(&$this,"HandleSignals"));
+            $this->Logger->debug("Handle SIGABRT = {$res}");
         }
         
         /**
@@ -64,22 +67,27 @@
          */
         final public function HandleSignals($signal)
         {
-            Log::Log("HandleSignals received signal {$signal}", E_NOTICE);            
-            $pid = @pcntl_wait(&$status);
+            $this->Logger->debug("HandleSignals received signal {$signal}");            
+            $pid = @pcntl_wait($status, WNOHANG | WUNTRACED);
             
             if ($pid > 0)
     		{
-    		    Log::Log("Application received signal {$signal} from child with PID# {$pid} (Exit code: {$status})", E_NOTICE);
+    		    $this->Logger->debug("Application received signal {$signal} from child with PID# {$pid} (Exit code: {$status})");
   
     		    foreach((array)$this->ProcessManager->PIDs as $kk=>$vv)
     			{
     				if ($vv == $pid)
     				{
     					unset($this->ProcessManager->PIDs[$kk]);
+    					$known_child = true;
+    					break;
     				}
     			}
     			
-    			$this->ProcessManager->ForkThreads();
+    			if ($known_child)
+    				$this->ProcessManager->ForkThreads();
+    			else
+    				$this->Logger->debug("Signal received from unknown child.");
     		}
         }
         
@@ -99,7 +107,7 @@
             
             @pcntl_signal($signal, $handler);
             
-            Log::Log("Added new handler on signal {$signal}.", E_NOTICE);
+            $this->Logger->debug("Added new handler on signal {$signal}.");
         }
     }
 ?>

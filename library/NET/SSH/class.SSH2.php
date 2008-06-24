@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    NET
      * @subpackage SSH
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */	
 
 	/**
@@ -128,6 +122,8 @@
 			$this->TermUnits = $term_units ? $term_units : self::TERM_UNITS;
 			$this->TermWidth = (is_int($term_width) && $term_width > 0) ? $term_width : self::TERM_WIDTH;
 		    $this->Timeout = self::STREAM_TIMEOUT;
+		    
+		    $this->Logger = LoggerManager::getLogger('SSH2');
 		}
 		
 		/**
@@ -188,7 +184,7 @@
 		    $sock = @fsockopen($host, $port, $errno, $errstr, $this->Timeout);
 		    if (!$sock)
 		    {
-		        $this->RaiseWarning("Unable to connect to SSH server on {$host}:{$port}. ({$errno}) {$errstr}");
+		        $this->Logger->warn("Unable to connect to SSH server on {$host}:{$port}. ({$errno}) {$errstr}");
 				return false;
 		    }
 		    else 
@@ -220,11 +216,11 @@
 				else 
 					$hostkeys = array();
 				
-			    $this->Connection = @ssh2_connect($host, $port, $hostkeys);
+			    $this->Connection = ssh2_connect($host, $port, $hostkeys);
 			    				
 				if (!$this->Connection)
 				{
-					$this->RaiseWarning("Unable to connect to SSH server on {$host}:{$port}");
+					$this->Logger->warn("Unable to connect to SSH server on {$host}:{$port}");
 					return false;
 				}
 				
@@ -233,20 +229,20 @@
 					// Try all avaliable pubkeys
 					foreach ((array)$this->Pubkeys as $p)
 					{
-						if (@ssh2_auth_pubkey_file($this->Connection, $p[0], $p[1], $p[2], $p[3]))
+						if (ssh2_auth_pubkey_file($this->Connection, $p[0], $p[1], $p[2], $p[3]))
 							return true;
 					    else 
-					        $this->RaiseWarning("Cannot login to SSH using PublicKey");
+					        $this->Logger->warn("Cannot login to SSH using PublicKey");
 					}
 					
 					
 					// Try all avaliable passwords
 					foreach ((array)$this->Passwords as $p)
 					{
-						if (@ssh2_auth_password($this->Connection, $p[0], $p[1]))
+						if (ssh2_auth_password($this->Connection, $p[0], $p[1]))
 							return true;
 					    else 
-					        $this->RaiseWarning("Cannot login to SSH");
+					        $this->Logger->warn("Cannot login to SSH");
 					}
 					
 				}
@@ -256,7 +252,7 @@
 			}
 			catch (Exception $e) 
 			{
-				self::RaiseWarning($e->getMessage());
+				$this->Logger->warn($e->getMessage());
 				return false;
 			}
 				
@@ -291,8 +287,10 @@
 					$this->StdErr = @fread($stderr_stream, 4096);
 					@fclose($stderr_stream);
 					
+					$this->Logger->info("STDERR: {$this->StdErr}");
+					
 					// Read from stream
-					while($l = fgets($stream, 4096))
+					while($l = @fgets($stream, 4096))
 					{
 						$meta = stream_get_meta_data($stream);
 						if ($meta["timed_out"])
@@ -359,7 +357,7 @@
 						}
 						else
 						{
-							Core::RaiseWarning(sprintf(_("SFTP: Cannot open remote file '%s'"), $remote_path));
+							$this->Logger->warn(sprintf(_("SFTP: Cannot open remote file '%s'"), $remote_path));
 							return false;
 						}
 					}
@@ -391,43 +389,55 @@
 					if (!$this->SFTP || !is_resource($this->SFTP))
 						$this->SFTP = @ssh2_sftp($this->Connection);
 						
-					if ($this->SFTP && is_resource($this->SFTP))
+					if ($this->SFTP && @is_resource($this->SFTP))
 					{
+						$this->Logger->info("Open stream to: ssh2.sftp://CONNECTION$remote_path");
+						
 						$stream = @fopen("ssh2.sftp://{$this->SFTP}".$remote_path, "r");
 						if ($stream)
 						{
+							$this->Logger->info("Reading: $remote_path");
 							$string = true;
-							while($string != false)
+							
+							@stream_set_timeout($stream, 5);
+							@stream_set_blocking($stream, 0);
+							
+							while($string !== false)
 							{
-								$string = @fread($stream, 1024);
+								$string = @fgetc($stream);
 								$retval .= $string;
 							}
 							
+							$info = serialize(stream_get_meta_data($stream));
+							//$this->Logger->info("SFTP Stream metadata: {$info}");
+							
 							@fclose($stream);
+							
+							//$this->Logger->info("SFTP read return: {$retval}");
 							
 							return $retval;
 						}
 						else
 						{
-							Core::RaiseWarning(sprintf(_("SFTP: Cannot open remote file '%s'"), $remote_path));
+							$this->Logger->warn(sprintf(_("SFTP: Cannot open remote file '%s'"), $remote_path));
 							return false;
 						}
 					}
 					else
 					{
-						Core::RaiseWarning(_("SFTP: Connection broken"));
+						$this->Logger->warn(_("SFTP: Connection broken"));
 						return false;
 					}
 				}
 				else
 				{
-					Core::RaiseWarning(_("No established SSH connection"));
+					$this->Logger->warn(_("No established SSH connection"));
 					return false;
 				}
 			}
 			catch (Exception $e) 
 			{
-				Core::RaiseWarning($e->__toString());
+				$this->Logger->warn($e->__toString());
 				return false;
 			}
 		}

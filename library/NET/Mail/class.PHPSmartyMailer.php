@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    NET
      * @subpackage Mail
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 	
 	Core::Load("NET/Mail/PHPMailer");
@@ -46,7 +40,7 @@
 		* Instance of Smarty object
 		* @var object
 		*/
-		private $Smarty;
+		public $Smarty;
 		
 		/**
 		* Constructor
@@ -56,7 +50,12 @@
 		*/
 		public function __construct($smtp_dsn = false)
 		{
-			$this->Smarty = Core::GetSmartyInstance();
+			$this->Smarty = new Smarty();
+			
+			$this->Smarty->template_dir = CF_TEMPLATES_PATH;
+			$this->Smarty->compile_dir = CF_SMARTYBIN_PATH;
+			$this->Smarty->cache_dir = CF_SMARTYCACHE_PATH;
+			
 			$this->Smarty->caching = false;
 			
 			if (!$smtp_dsn || $smtp_dsn == "")
@@ -78,6 +77,16 @@
 				if ($this->Username && $this->Password)
 					$this->SMTPAuth = true;
 			}
+		}
+		
+		/**
+		 * Sets Smaerty templates DIR
+		 *
+		 * @param string $dir
+		 */
+		public function SetSmartyTemplateDir($dir)
+		{
+			$this->Smarty->template_dir = $dir;
 		}
 		
 		/**
@@ -115,11 +124,56 @@
 				if (is_array($value))
 				{
 					$this->Smarty->assign($value[1]);
-					$this->Body = $this->Smarty->fetch($value[0]);
+					$template_name = $value[0];					
 				}
 				else
-					$this->Body = $this->Smarty->fetch($value);
+					$template_name = $value[0];
+					
+				$body = $this->Smarty->fetch($template_name);
+				
+				preg_match_all("/\[([A-Za-z0-9]+)([^\]]*)\]((.*)\[\/\\1\])?/si", $body, $matches);
+				foreach ($matches[0] as $index=>$variable)
+				{
+					switch($matches[1][$index])
+					{
+						case "subject":
+							$this->Subject = $matches[4][$index];
+							break;
+						
+						case "settings":
+							
+							$str = str_replace(' ', '&', trim($matches[2][$index]));
+							parse_str($str, $settings);
+							
+							if ($settings['priority'])
+								$this->Priority = $settings['priority'];
+
+							if ($settings['charset'])
+								$this->CharSet = $settings['charset']; 
+														
+							break;
+					}
+					
+					$body = str_replace($matches[0][$index], "", $body);
+				}
+
+				$this->Body = trim($body);
+								
+				if ($settings['type'] == 'html')
+					$this->AltBody = strip_tags(trim($body));					
 			}
+		}
+		
+		public function Send($template_name = null, $mail_args = null, $email = null, $name = null)
+		{
+			if ($template_name && is_array($mail_args) && $email)
+			{
+				$this->ClearAddresses();
+				$this->SmartyBody = array($template_name, $mail_args);
+				$this->AddAddress($email, $name);
+			}
+				
+			return parent::Send();
 		}
 	}
 	

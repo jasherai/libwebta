@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package NET_API
      * @subpackage BIND
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 	
 	/**
@@ -108,6 +102,8 @@
 		 */
 		private $FTP;
 		
+		private $Logger;
+		
 		/**
 		 * Constructor
 		 *
@@ -124,6 +120,8 @@
 			// Call Bind class construct
 			parent::__construct($namedconf_path, $nameddb_path, $zonetemplate, $rndc_path, false);	
 
+			$this->Logger = LoggerManager::getLogger('RemoteBIND');
+			
 			$this->Host = $host;
 			$this->Port = $port;
 			$this->Authinfo = $authinfo;
@@ -131,7 +129,8 @@
 			$this->Transport = self::DEFAULT_TRANSPORT;
 			
 			if ($inittransport)
-				$this->InitTransport();
+				if (!$this->InitTransport())
+					Core::RaiseError("Cannot init transport");
 			
 			$this->DoMakeBackup = false;
 			$this->HaveNewZones = 0;
@@ -154,36 +153,45 @@
 					$this->SSH2->AddPubkey($this->Authinfo["login"], $this->Authinfo["pubkey_path"], $this->Authinfo["privkey_path"], $this->Authinfo["key_pass"]);
 					
 				if (!$this->SSH2->Connect($this->Host, $this->Port))
-					Core::RaiseError(sprintf(_("Cannot connect to %s on port %d!"), $this->Host, $this->Port));
+				{
+					$this->Logger->error(sprintf(_("Cannot connect to %s on port %d!"), $this->Host, $this->Port));
+					return false;
+				}
 											
 				// Fetch named.conf
 				$this->Conf = $this->SSH2->GetFile($this->NamedConfPath);
 				if (!$this->Conf)				    
-					Core::RaiseWarning(sprintf(_("named.conf does not exist or empty on %s"), $this->Host));
-				else 
 				{
-				    
-				    //preg_match("/directory[^\"']+[\"']*([^\"']+)[\"']*/si", $this->Conf, $matches);
-				    //$dir = trim($matches[1]);
-                    //if ($dir)
-                    //    $this->SSH2->Exec("cd {$dir}");    
+					$this->Logger->error(sprintf(_("named.conf does not exist or empty on %s"), $this->Host));
+					return false;
 				}
 						
 				// COunt initial number of zones	
 				$this->ZonesOnStart = $this->RndcStatus();
 				if (!$this->ZonesOnStart)
-					Core::RaiseWarning(sprintf(_("BIND is not running on %s"), $this->Host));
+				{
+					$this->Logger->error(sprintf(_("BIND is not running on %s"), $this->Host));
+					return false;
+				}
 			}
 			elseif ($this->Transport == "ftp")
 			{
 				$this->FTP = new FTP($this->Host, $this->Authinfo["login"], $this->Authinfo["password"], $this->Port);
 				if (!$this->FTP)
-					Core::RaiseError(sprintf(_("Cannot connect to %s on port %s!"), $this->Host, $this->Port));
+				{
+					$this->Logger->error(sprintf(_("Cannot connect to %s on port %s!"), $this->Host, $this->Port));
+					return false;
+				}
 					
 				$this->Conf = $this->FTP->GetFile("/", basename($this->NamedConfPath), 1);
 				if (!$this->Conf)
-					Core::RaiseError(sprintf(_("Cannot fetch named.conf from %s"), $this->Host));
+				{
+					$this->Logger->error(sprintf(_("Cannot fetch named.conf from %s"), $this->Host));
+					return false;
+				}
 			}
+			
+			return true;
 		}
 		
 		/**
@@ -194,7 +202,7 @@
 		public function SetTransport($transport)
 		{
 			$this->Transport = $transport;
-			$this->InitTransport();
+			return $this->InitTransport();
 		}
 		
 		/**

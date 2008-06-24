@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    IO
      * @subpackage Upload
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 	
 	Core::Load("IO/Basic");
@@ -104,6 +98,8 @@
 		 * @var string
 		 */
 		public $FileExtension;
+		
+		public $MimeType;
 		
 		
 		/**
@@ -230,7 +226,7 @@
   				    $str = @fgets($sock, 2048);
   				    $headers .= $str;
   				}
-				
+  				
   				if (stristr($headers, "200 OK"))
 				{  				
     				while (!feof($sock) && !$meta['eof'])
@@ -314,6 +310,7 @@
 		public function Upload($file)
 		{
 			$this->File = $file;
+			$this->MimeType = $this->File['type'];
 			if ($this->Validate())
 			{
 				if (!@move_uploaded_file($file["tmp_name"], $this->Destination))

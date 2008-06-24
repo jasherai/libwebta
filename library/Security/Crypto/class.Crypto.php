@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    Security
      * @subpackage Crypto
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 	
 	
@@ -73,7 +67,7 @@
 		private final function CheckMcrypt()
 		{
 			if (!function_exists("mcrypt_module_open"))
-				$this->RaiseError("Cannot call mcrypt_module_open(). Mcrypt extension not installed?");
+				Core::ThrowException("Cannot call mcrypt_module_open(). Mcrypt extension not installed?", E_ERROR);
 		}
 		
 		
@@ -85,7 +79,7 @@
 		private final function CheckMhash()
 		{
 			if (!function_exists("mhash"))
-				$this->RaiseError("Cannot call mhash(). Mhash extension not installed?");
+				Core::ThrowException("Cannot call mhash(). Mhash extension not installed?", E_ERROR);
 		}
 		
 		
@@ -116,7 +110,7 @@
 			}
 			catch (Exception $e)
 			{
-				return false;
+				Core::ThrowException("Crypto::Encrypt throwed exception: {$e->getMessage()}", E_ERROR);
 			}
 			return ($retval);
 		}

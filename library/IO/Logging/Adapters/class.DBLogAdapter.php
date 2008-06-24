@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    IO
      * @subpackage Logging
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 
 	/**
@@ -68,12 +62,7 @@
 	        // Get the LOG table name
             $this->TableName = is_null($tableName) ? self::LOG_DB_TABLE : $tableName;
 	        
-            $this->Options = array('fieldMessage' => 'message', 'fieldLevel' => 'level', 'fieldDatetime' => false, 'fieldTimestamp' => false);
-            
-			//
-			// Get Database instance
-			//
-			$this->DB = Core::GetDBInstance(null, true);
+            $this->Options = array('fieldMessage' => 'message', 'fieldLevel' => 'level', 'fieldDatetime' => false, 'fieldTimestamp' => false, 'fieldTrnID' => false);
 	    }
 	
 	/**
@@ -142,7 +131,11 @@
 		 */
 		public function Write($fields)
 		{
-		    /**
+		    $DB = Core::GetDBInstance(NULL, true);
+		    if (!$DB)
+		    	return;
+			
+			/**
 		     * If the field defaults for 'message' and 'level' have been changed
 		     * in the options, replace the keys in the $field array.
 		     */
@@ -161,7 +154,13 @@
 		           
 		        unset($fields['level']);
 		    }
-	       
+	       		    
+		    if ($this->Options['fieldTimestamp'] != false)
+		        $fields[$this->Options['fieldTimestamp']] = microtime(true)*10000;
+		    
+		    if ($this->Options['fieldTrnID'] != false)
+		    	$fields[$this->Options['fieldTrnID']] = defined("TRANSACTION_ID") ? TRANSACTION_ID : "__UNDEFINED__";
+		    
 		    /**
 		     * Build an array of field names and values for the SQL statement.
 		     */
@@ -169,7 +168,7 @@
 		    foreach ($fields as $key => &$value) 
 		    {
 		        if (stristr($value, "'"))
-		          $val = $this->DB->qstr($value);
+		          $val = $DB->qstr($value);
 		        else 
 		          $val = "'{$value}'";
 		        
@@ -180,20 +179,13 @@
 		            $value = "NULL";
 		        }
 		    }
-	        		    
+		    
 		    // Add Datetime field
 		    if ($this->Options['fieldDatetime'] != false)
 		    {
 		        $fieldNames[] = $this->Options['fieldDatetime'];
-		        $fields[] = $this->DB->DBTimeStamp(time());
+		    	$fields[] = $DB->DBTimeStamp(time());
 		    }
-		    
-		    if ($this->Options['fieldDatetime'] != false)
-		    {
-		        $fieldNames[] = $this->Options['fieldTimestamp'];
-		        $fields[] = microtime(true)*10000;
-		    }
-		    
 		    
 		    /**
 		     * INSERT the log line into the database.  XXX Replace with Prepared Statement
@@ -205,9 +197,12 @@
 		         	
 		    try 
 		    {
-		       $this->DB->Execute($sql);
+		       $DB->Execute($sql);
 		       
-		       $id = $this->DB->Insert_ID();
+		       $id = $DB->Insert_ID();
+		       
+		       unset($DB);
+		       
 		       return $id;
 		    }
 		    catch (Exception $e)
@@ -217,6 +212,7 @@
 		        else 
 		          return false;
 		    }
+		    
 	        return true;
 		}
 	

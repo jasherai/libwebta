@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    NET
      * @subpackage SSH
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      * @filesource
      */
     
@@ -47,17 +41,26 @@
         	$this->SSH2 = new SSH2();
         	
         	// Failed password
-        	$retval = $this->SSH2->Connect("65.38.4.218", 22, "webta", "#webta!");
+        	$retval = $this->SSH2->Connect("ns1.scalr.net", 22, "named", "ND78239hdu^&^2e");
         	$this->AssertTrue($retval, "Log in with password");
         	
         	$base = dirname(__FILE__);
-        	
-        	// Correct pubkey
-        	//$this->SSH2->AddPubkey("root", "$base/keys/key.pub", "$base/keys/key", "111111");
-        	//$retval = $this->SSH2->Connect("webta.net", 60022);
-			//$this->AssertTrue($retval, "Logged in with correct public key");
-			
+        				
 			$this->runTests();	
+
+			
+			print "<HR>";
+			
+			$this->SSH2 = new SSH2();
+        	
+		
+        	// Failed password
+        	$retval = $this->SSH2->Connect("67.19.90.82", 22, "named", "78y6^T%^fg32ieg");
+        	$this->AssertTrue($retval, "Log in with password");
+        	
+        	$base = dirname(__FILE__);
+        				
+			$this->runTests();
         }
         
         function testSSH2Local()
@@ -90,8 +93,8 @@
         	$res = $this->SSH2->Exec("ls /");
 			$this->assertWantedPattern("/boot/", $res, "Received root directory listing");
 
-			$res =  $this->SSH2->GetFile("/etc/passwd");
-			$this->assertTrue(strlen($res) > 5, "SSH2->GetFile succesfully retreived file");
+			$res =  $this->SSH2->GetFile("/etc/named.conf");
+			$this->assertTrue(strlen($res) > 5, "READ /etc/named.conf");
 			
 			$res =  $this->SSH2->SendFile("/tmp/test.file", __FILE__);
 			$this->assertTrue($res, "File ".__FILE__." saved as /tmp/test.file");

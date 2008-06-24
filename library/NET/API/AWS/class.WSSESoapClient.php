@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    NET_API
      * @subpackage AWS
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */ 
 
 	Core::Load("NET/API/AWS/WSSESOAP");
@@ -73,7 +67,7 @@
 			}
 			catch (Exception $e)
 			{
-			    Core::RaiseError("[".__METHOD__."] ".$e->getMessage(), E_ERROR);
+			    throw new Exception("[".__METHOD__."] ".$e->getMessage()." (Please, check your keys)", E_ERROR);
 			}
 		
 			/* Add certificate (BinarySecurityToken) to the message and attach pointer to Signature */
@@ -86,7 +80,7 @@
 			}
 			catch (Exception $e)
 			{
-				Core::RaiseError("[".__METHOD__."] ".$e->__toString(), E_ERROR);
+				throw new Exception("[".__METHOD__."] ".$e->__toString(), E_ERROR);
 			}
 		}
 	}

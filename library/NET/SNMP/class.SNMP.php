@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    NET
      * @subpackage SNMP
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 	
 	/**
@@ -49,7 +43,7 @@
 		 * Connection retries
 		 *
 		 */
-		const DEFAULT_RETRIES = 1;
+		const DEFAULT_RETRIES = 3;
 		
 		/**
 		* SNMP Connection Timeout
@@ -64,7 +58,7 @@
 		 * @param int $port
 		 * @param string $community
 		 */
-		public function Connect($host, $port=161, $community="public")
+		public function Connect($host, $port=161, $community="public", $timeout = false, $retries = false, $SNMP_VALUE_PLAIN = false)
 		{
 			if (is_null($port))
 				$port = self::DEFAULT_PORT ;
@@ -73,12 +67,19 @@
 			$this->Connection = "{$host}";
 			$this->Community = $community;
 			
-			$this->Timeout = (!defined("SNMP_TIMEOUT")) ? self::DEFAULT_TIMEOUT : SNMP_TIMEOUT;
+			if (!$timeout)
+				$this->Timeout = (!defined("SNMP_TIMEOUT")) ? self::DEFAULT_TIMEOUT : SNMP_TIMEOUT;
+			else 
+				$this->Timeout = $timeout;
+				
 			$this->Timeout = $this->Timeout*100000;
 			
-			$this->Retries = self::DEFAULT_RETRIES;
+			$this->Retries = $retries ? $retries : self::DEFAULT_RETRIES;
 			
-			@snmp_set_valueretrieval(SNMP_VALUE_PLAIN);
+			if ($SNMP_VALUE_PLAIN == true)
+				@snmp_set_valueretrieval(SNMP_VALUE_PLAIN);
+			else 
+				@snmp_set_valueretrieval(SNMP_VALUE_LIBRARY);
 		}
 		
 		
@@ -104,7 +105,7 @@
 			try 
 			{
 				$retval = @snmpget($this->Connection, $this->Community, $OID, $this->Timeout, $this->Retries);
-				
+								
 			} catch (Exception $e)
 			{
 				$this->RaiseWarning("Cannot get SNMP property. ".$e->__toString());

@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    NET
      * @subpackage HTTP
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 
 	/**
@@ -51,13 +45,13 @@
 		 * indefinitely
 		 * 
 		 */
-		const CONNECT_TIMEOUT = 30;
+		const CONNECT_TIMEOUT = 60;
 		
 		/**
 		 * The maximum number of seconds to allow CURL functions to execute.
 		 * 
 		 */
-		const CURL_TIMEOUT = 5;
+		const CURL_TIMEOUT = 60;
 		 
 		/**
 		 * Max redirects
@@ -526,13 +520,13 @@
             $needed_parts = array('nonce'=>1, 'nc'=>1, 'cnonce'=>1, 'qop'=>1, 'username'=>1, 'uri'=>1, 'response'=>1);
             $data = array();
         
-            preg_match_all('@(\w+)=(?:([\'"]*)?([^\'"]+)([\'"]*)[^\s]\s)@', $txt, $matches, PREG_SET_ORDER);
+            preg_match_all('/(\w+)=[\'"]*(.*?)[\'"]*,/si', $txt, $matches, PREG_SET_ORDER);
             
             foreach ($matches as $m) {
-                $data[$m[1]] = $m[3] ? $m[3] : $m[4];
+                $data[$m[1]] = $m[2];
                 unset($needed_parts[$m[1]]);
             }
-        
+            
             return $needed_parts ? false : $data;
         }
 	}

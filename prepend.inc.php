@@ -18,15 +18,16 @@
 	// | Authors: Alex Kovalyov <http://webta.net/company.html> 									  |
 	// +--------------------------------------------------------------------------+
 
-	require_once("{$srcpath}/LibWebta/library/class.Core.php");
-	require_once("{$srcpath}/LibWebta/library/class.CoreException.php");
+	require_once(SRCPATH."/LibWebta/library/class.Core.php");
+	require_once(SRCPATH."/LibWebta/library/class.CoreUtils.php");
+	require_once(SRCPATH."/LibWebta/library/class.CoreException.php");
 	
 	
 	// Default custom exception. 
 	// Use a stub if one is not defined.
-	if (!class_exists("CustomException"))
+	if (!class_exists("ApplicationException"))
 	{
-	    class CustomException extends Exception
+	    class ApplicationException extends Exception
 	    {
 	        function __construct($message, $code = 0)
 	        {
@@ -34,7 +35,7 @@
 	            
 	            if ($code == E_ERROR)
 	            {
-	               print "Error: ".$message;
+	               print "Exception: ".$message;
 	               exit();
 	            }
 	        }
@@ -48,19 +49,16 @@
 	function libwebta_error_handler($errno, $errstr, $errfile, $errline)
 	{
 		$message = "Error {$errno} {$errstr}, in {$errfile}:{$errline}";
-		
+				
 		switch ($errno) {
 		    
 		case E_CORE_ERROR:
 		case E_ERROR:
 	    case E_USER_ERROR:
-	        
-           $ReflectionException = new ReflectionClass(Core::$ExceptionClassName);
-		   throw $ReflectionException->newInstanceArgs(array($message, $errno));
-	        
-	        break;
 	    case E_USER_WARNING:
-	    	Core::RaiseError($message);
+	        
+		    throw new Exception($message, $errno);
+	        
 	        break;
 	
 	    case E_USER_NOTICE:
@@ -72,7 +70,6 @@
 	    	  Core::RaiseWarning($message);
 	        break;
 	    }
-			
 	}
 	
 	

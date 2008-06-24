@@ -4,21 +4,15 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    Core
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */ 
     
     /**
@@ -30,6 +24,9 @@
 	define("TEMPLATES_PATH", LIBWEBTA_BASE."/../../../templates");
 	define("SMARTYBIN_PATH", LIBWEBTA_BASE."/../../../cache/smarty_bin");
 	define("SMARTYCACHE_PATH", LIBWEBTA_BASE."/../../../cache/smarty");
+	
+	define("LIBWEBTA_DB_SERVER_MASTER", "master");
+	define("LIBWEBTA_DB_SERVER_SLAVE", "slave");
 	
 	/**
      * @name Core
@@ -48,7 +45,16 @@
 		 * @access private
 		 * @static 
 		 */
-		private static $DB;
+		private static $DB = array();
+		
+		/**
+		 * PDO Instances
+		 * 
+		 * @var array
+		 * @access private
+		 * @static 
+		 */
+		private static $PDO = array();
 		
 		/**
 		 * Shell instance
@@ -114,7 +120,7 @@
 		 *
 		 * @var string
 		 */
-		public static $ExceptionClassName = "CustomException"; 
+		public static $ExceptionClassName = "ApplicationException"; 
 		
 		/**
 		 * Reflection Exception Class
@@ -299,7 +305,7 @@
 		
 		/**
 		 * Get Validator instance
-		 * @return object
+		 * @return Validator
 		 * @static 
 		 */
 		public static function GetValidatorInstance()
@@ -319,11 +325,11 @@
 		 * @return object
 		 * @static 
 		 */
-		public static function GetSmartyInstance()
+		public static function GetSmartyInstance($smarty_classame = "Smarty")
 		{
-		    if (!class_exists("Smarty"))
+		    if (!class_exists($smarty_classame))
 		    {
-                if (self::$ExceptionClassName == 'CustomException')
+                if (self::$ExceptionClassName == 'ApplicationException')
                     throw new CoreException(_("Cannot find Smarty declaration. Use Core::Load() to load it."), E_ERROR);
                 else
                     Core::RaiseError(_("Cannot find Smarty declaration. Use Core::Load() to load it."), E_ERROR);
@@ -337,7 +343,7 @@
 			         self::$Smarty = $GLOBALS["smarty"];
 			     else 
 			     {			         
-			         self::$Smarty = new Smarty();
+			         self::$Smarty = new $smarty_classame;
 			         self::$Smarty->template_dir = defined("CF_TEMPLATES_PATH") ? CF_TEMPLATES_PATH : TEMPLATES_PATH;
 			         self::$Smarty->compile_dir = defined("CF_SMARTYBIN_PATH") ? CF_SMARTYBIN_PATH : SMARTYBIN_PATH;
 			         self::$Smarty->cache_dir = defined("CF_SMARTYCACHE_PATH") ? CF_SMARTYCACHE_PATH : SMARTYCACHE_PATH;
@@ -357,65 +363,92 @@
 		 * @return object
 		 * @static 
 		 */
-		public static function GetDBInstance($connection_info = NULL, $use_nconnect = false, $driver = 'mysqli')
+		public static function GetDBInstance($connection_info = NULL, $use_nconnect = false, $driver = 'mysqli', $conn_type = DB_SERVER_MASTER)
 		{		    
 		    if (function_exists("NewADOConnection"))
 		    {
-		        if (!self::$DB || self::$DB == null || $use_nconnect)
-                {                   
-                    if ($GLOBALS["db"] && !$use_nconnect)
-                        self::$DB = $GLOBALS["db"];
-                    else 
-                    {
-                        if ((!is_array($connection_info) || defined("CF_DB_DSN")) && !$use_nconnect)
-                        {
-                            $dsn = ($connection_info) ? $connection_info : CF_DB_DSN;
-                            self::$DB = &NewADOConnection($dsn);
-                        }
-                        else 
-                        {                            
-                            // Connect to database;
-                            $host = ($connection_info["host"]) ? $connection_info["host"] : (defined("CF_DB_HOST") ? CF_DB_HOST : "");
-                            $user = ($connection_info["user"]) ? $connection_info["user"] : (defined("CF_DB_USER") ? CF_DB_USER : "");
-                            $pass = ($connection_info["pass"]) ? $connection_info["pass"] : (defined("CF_DB_PASS") ? CF_DB_PASS : "");
-                            $name = ($connection_info["name"]) ? $connection_info["name"] : (defined("CF_DB_NAME") ? CF_DB_NAME : "");
-                            
-                            if ($host == "")
-                                Core::RaiseError("Database host not specified", E_ERROR);
-                            
-                            try
-                            {
-                                if (defined("CF_DB_DRIVER"))
-                                    $driver = CF_DB_DRIVER;
-                                
-                        	    self::$DB = &NewADOConnection($driver);
-                        	    
-                        	    if ($use_nconnect)
-                                    self::$DB->NConnect($host, $user, $pass, $name);
-                                else 
-                                    self::$DB->Connect($host, $user, $pass, $name);
-                                    
-
-                            }
-                            catch (ADODB_Exception $e)
-                            {
-                               Core::RaiseError("Cannot connect to database", E_ERROR);
-                            }
-                                                      	
-                        	if (!self::$DB) 
-                        	    Core::RaiseError("Cannot connect to database", E_ERROR);
-                            
-                        	self::$DB->debug = defined("CF_DEBUG_DB") ? CF_DEBUG_DB : false;
-                        	self::$DB->cacheSecs = defined("CF_DB_CACHE") ? CF_DB_CACHE : 0;
-                        	self::$DB->SetFetchMode(ADODB_FETCH_ASSOC);   
-                        }
-                    }
-                }
+		        // Connect to database;
+                $host = ($connection_info["host"]) ? $connection_info["host"] : (defined("CF_DB_HOST") ? CF_DB_HOST : "");
+                $user = ($connection_info["user"]) ? $connection_info["user"] : (defined("CF_DB_USER") ? CF_DB_USER : "");
+                $pass = ($connection_info["pass"]) ? $connection_info["pass"] : (defined("CF_DB_PASS") ? CF_DB_PASS : "");
+                $name = ($connection_info["name"]) ? $connection_info["name"] : (defined("CF_DB_NAME") ? CF_DB_NAME : "");
+                $driver = ($connection_info["driver"]) ? $connection_info["driver"] : (defined("CF_DB_DRIVER") ? CF_DB_DRIVER : "");
+		    	
+                $dsn = ($connection_info && !is_array($connection_info)) ? $connection_info : CF_DB_DSN;
                 
-    			return self::$DB;
+		    	if (!self::$DB[$conn_type] || self::$DB[$conn_type] == null || $use_nconnect)
+                {                   
+                    if (($dsn && defined("CF_DB_DSN")))
+                    {
+                        self::$DB[$conn_type] = &NewADOConnection($dsn);
+                    }
+                    else 
+                    {                            
+                        if ($host == "")
+                            Core::RaiseError("Database host not specified", E_ERROR);
+                        
+                        try
+                        {                                
+                    	    self::$DB[$conn_type] = &NewADOConnection($driver);
+                    	    
+                    	    if ($use_nconnect)
+                                self::$DB[$conn_type]->NConnect($host, $user, $pass, $name);
+                            else 
+                                self::$DB[$conn_type]->Connect($host, $user, $pass, $name);
+                                
+
+                        }
+                        catch (ADODB_Exception $e)
+                        {
+                           Core::RaiseError("Cannot connect to database", E_ERROR);
+                        }
+                                                  	
+                    	if (!self::$DB[$conn_type] || !self::$DB[$conn_type]->IsConnected()) 
+                    	    Core::RaiseError("Cannot connect to database", E_ERROR);
+                        
+                    	self::$DB[$conn_type]->debug = defined("CF_DEBUG_DB") ? CF_DEBUG_DB : false;
+                    	
+                    	self::$DB[$conn_type]->cacheSecs = defined("CF_DB_CACHE") ? CF_DB_CACHE : 0;
+                    	self::$DB[$conn_type]->SetFetchMode(ADODB_FETCH_ASSOC);   
+                    }
+                }         	
+                
+    			return self::$DB[$conn_type];
 		    }
 		    else 
-                Core::RaiseError(_("Cannot find ADODB declaration. Use Core::Load() to load it."));	
+                Core::RaiseError(_("ADODB not loaded."));	
+		}
+		
+		public static function GetPDOInstance ($config=null, $use_nconnect = false, $conn_type = DB_SERVER_MASTER)
+		{
+			if (is_array($config))
+			{
+				$dsn = sprintf('%s:dbname=%s;host=%s', $config['driver'], $config['name'], $config['host']);
+				$user = $config['user'];
+				$pass = $config['pass'];
+			} 
+			else if (is_string($config))
+			{
+				$pu = parse_url($config);
+				$dsn = sprintf('%s:dbname=%s;host=%s', $pu['scheme'], substr($pu['path'], 1), $pu['host']);
+				$user = $pu['user'];
+				$pass = $pu['pass'];
+			}
+			else if (!self::$PDO[$conn_type])
+			{
+				throw new Exception('Connection config not specified');
+			}
+			
+			if (self::$PDO[$conn_type] === null || $use_nconnect)
+			{                   
+				$db = new PDO($dsn, $user, $pass);
+				$db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+				$db->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+				
+				self::$PDO[$conn_type] = $db;
+			}
+			
+			return self::$PDO[$conn_type];
 		}
 		
 		
@@ -440,7 +473,7 @@
                 self::$ReflectionException = new ReflectionClass($name);
 		    }
 		    else 
-		      Core::RaiseWarning("Core::SetExceptionClassName failed. Class '{$name}' not found");
+		      Core::RaiseError("Core::SetExceptionClassName failed. Class '{$name}' not found");
 		}
 		
 		/**
@@ -453,19 +486,6 @@
 		public static function RaiseWarning($str, $print = true)
 		{
 			$GLOBALS["warnings"][] = $str;
-			
-			try
-			{
-    			if ( class_exists("Log") && Log::HasLogger("Default"))
-     			{
-     			    Log::$DoRaiseExceptions = false;
-     			    Log::Log("[WARNING] {$str}", E_USER_WARNING, array("useragent" => $_SERVER['HTTP_USER_AGENT'], "ipaddr" => $_SERVER['REMOTE_ADDR']), "Default");
-     			}
-			}
-			catch (Exception $e)
-			{
-			    // Need to RaiseError?
-			}
 		}
 		
 		/**
@@ -500,7 +520,24 @@
 		*/
 		public static function RaiseError($str, $code = E_USER_ERROR)
 		{		    
-		    throw self::$ReflectionException->newInstanceArgs(array($str, $code));
+		    self::ThrowException($str, $code);
+		}
+		
+		/**
+		* Raise fatal error (We're gonna die!)
+		* @access public
+		* @param string $str Error message
+		* @return void
+		* @static 
+		*/
+		public static function ThrowException($str, $code = E_USER_ERROR)
+		{		    
+		    if (self::$ReflectionException instanceof ReflectionClass)
+				throw self::$ReflectionException->newInstanceArgs(array($str, $code));
+			else
+			{
+				throw new Exception($str, $code);
+			}
 		}
 		
 		

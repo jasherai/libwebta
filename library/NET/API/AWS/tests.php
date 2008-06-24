@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package NET_API
      * @subpackage AWS
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      * @filesource
      */     
 
@@ -52,26 +46,41 @@
         function _testS3Bucket()
         {
             $AmazonS3 = new AmazonS3("0EJNVE9QFYY3TD554T02", "VOtWnbI2PmsqKOqDNVVgfLVsEnGD/6miiYDY552S");
-            $res = $AmazonS3->ListBuckets();
-            $this->assertTrue(is_array($res), "ListBuckets returnaed array");
+            $res = $AmazonS3->ListBuckets();            
+            $this->assertTrue(is_array($res->Bucket), "ListBuckets returned array");
             
             $res = $AmazonS3->CreateBucket("MySQLDumps");
             $this->assertTrue($res, "Bucket successfull created");
+            
+            $res = $AmazonS3->CreateObject("fonts/test.ttf", "offload-public", "/tmp/PhotoEditService.wsdl", "plain/text");
+            $this->assertTrue($res, "Object successfull created");
+            
+            $res = $AmazonS3->DownloadObject("fonts/test.ttf", "offload-public");
+            $this->assertTrue($res, "Object successfull downloaded");
+            
+            $res = $AmazonS3->DeleteObject("fonts/test.ttf", "offload-public");
+            $this->assertTrue($res, "Object successfull removed");
         }
 
-        function testCreateKeyPair()
+		function testDescribeAvailabilityZones()
+        {
+            $res = $this->AmazonEC2->DescribeAvailabilityZones();            
+            $this->assertTrue($res->availabilityZoneInfo, "DescribeAvailabilityZones returned avail zones");
+        }
+        
+        function _testCreateKeyPair()
         {
             $res = $this->AmazonEC2->CreateKeyPair("farm-2");            
             $this->assertTrue($res->keyMaterial, "CreateKeyPair returned key info");
         }
         
-        function testCreateSecurityGroup()
+        function _testCreateSecurityGroup()
         {
             $res = $this->AmazonEC2->CreateSecurityGroup("testGroup", "testGroup");
             $this->assertTrue($res->return, "CreateSecurityGroup returned true");
         }
         
-        function testAuthorizeSecurityGroupIngress()
+        function _testAuthorizeSecurityGroupIngress()
         {
             $IpPermissionSet = new IpPermissionSetType();
             $IpPermissionSet->AddItem("tcp", "80", "80", null, array("0.0.0.0/0"));
@@ -80,19 +89,19 @@
             $this->assertTrue($res->return === true, "AuthorizeSecurityGroupIngress returned true");
         }
         
-        function testDeleteSecurityGroup()
+        function _testDeleteSecurityGroup()
         {
             $res = $this->AmazonEC2->DeleteSecurityGroup("testGroup");
             $this->assertTrue($res->return === true, "DeleteSecurityGroup returned true");
         }
         
-        function testDescribeSecurityGroups()
+        function _testDescribeSecurityGroups()
         {
             $groups = $this->AmazonEC2->DescribeSecurityGroups();
             $this->assertTrue(is_array($groups->securityGroupInfo->item), "AmazonEC2->DescribeSecurityGroups->securityGroupInfo->item is array");
         }
         
-        function testDescribeImages()
+        function _testDescribeImages()
         {
             $DescribeImagesType = new DescribeImagesType();
 		    $DescribeImagesType->ownersSet = array("item" => array("owner" => $this->AWSAccountID));
@@ -103,7 +112,7 @@
 		    $this->imageId = $result->imagesSet->item[0]->imageId;
         }
         
-        function testRunInstances()
+        function _testRunInstances()
         {
             $RunInstancesType = new RunInstancesType();
             $RunInstancesType->imageId = $this->imageId;
@@ -119,7 +128,7 @@
             $this->instanceId = $result->instancesSet->item->instanceId;
         }
         
-        function testTerminateInstances()
+        function _testTerminateInstances()
         {
             $res = $this->AmazonEC2->TerminateInstances(array($this->instanceId));
             $this->assertTrue($res->instancesSet->item->instanceId, "TerminateInstances return instanceId");

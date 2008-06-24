@@ -4,24 +4,40 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    Data
      * @subpackage Validation
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 	
+	// A simple checkdnsrr for Windows. Needed for Validator::IsEmail() 
+	if(!function_exists('checkdnsrr'))
+	{
+	    function checkdnsrr($hostName, $recType = '') 
+	    { 
+	     if(!empty($hostName)) { 
+	       if( $recType == '' ) $recType = "MX"; 
+	       exec("nslookup -type=$recType $hostName", $result); 
+	       // check each line to find the one that starts with the host 
+	       // name. If it exists then the function succeeded. 
+	       foreach ($result as $line) { 
+	         if(eregi("^$hostName",$line)) { 
+	           return true; 
+	         } 
+	       } 
+	       // otherwise there was no mail handler for the domain 
+	       return false; 
+	     } 
+	     return false;
+	    }
+	}
+
 	/**
      * @name Validator
      * @version 1.0
@@ -47,6 +63,7 @@
 		const ERROR_XSS = "%s contains disallowed characters";
 		const ERROR_LENGTH = "%s must be longer than %s characters";
 		const ERROR_DATE = "%s must be valid date";
+		const ERROR_E164PHONE = "%s must be in XXX-XXX-XXXX format. Minimum length of last field is 4, maximum: 12";
 		
 		/**
 		 * Errors
@@ -62,6 +79,17 @@
 		function __construct()
 		{
 			$this->Errors = array();
+		}
+		
+		/**
+		 * Scan strings for debug code
+		 *
+		 * @param string $string
+		 * @return bool
+		 */
+		public static function ScanForDebugCode($string)
+		{
+			return preg_match("/((apd_[A-Za-z]*\()|(xdebug_[A-Za-z]*\()|(eval\()|(var_dump\()|(print_r\()|(classkit_[a-zA-Z_]*\()|(create_function)|(call_user_func)|(Reflection[A-Za-z]+\())/si", $string, $matches);
 		}
 		
 		/**
@@ -142,6 +170,16 @@
 			return $retval;
 		}
 		
+		public function IsE164Phone($var, $name = null, $error = null)
+		{
+			$retval = preg_match("/^[0-9]{3}-[0-9]{3}-[0-9]{4,12}$/", $var);
+			
+			if (!$retval)
+				$this->AddError(self::ERROR_E164PHONE, $var, $name, $error);
+				
+			return $retval;
+		}
+		
 		/**
 		 * Return true if $var1 equal $var2
 		 *
@@ -210,7 +248,7 @@
 		 */
 		public function IsIPAddress($var, $name = null, $error = null)
 		{
-			$retval = (bool)preg_match("/([0-9]{1,3}\.){3}[0-9]{1,3}/", $var);
+			$retval = (ip2long($var) === false) ? false : true;			
 			
 			if (!$retval)
 				$this->AddError(self::ERROR_IP, $var, $name, $error);
@@ -271,16 +309,114 @@
 		 * @param string $error
 		 * @return bool
 		 */
-		public function IsDomain($var, $name = null, $error = null)
+		public function IsDomain($var, $name = null, $error = null, $allowed_utf8_chars = "", $disallowed_utf8_chars = "")
 		{	
 			// Remove trailing dot if its there. FQDN may contain dot at the end!
 			$var = rtrim($var, ".");
-			$retval = (bool)preg_match('/^([a-zA-Z0-9]+[a-zA-Z0-9\-]*\.[a-zA-Z0-9\-]*?)+$/', $var);
+			
+			$retval = (bool)preg_match('/^([a-zA-Z0-9'.$allowed_utf8_chars.']+[a-zA-Z0-9-'.$allowed_utf8_chars.']*\.[a-zA-Z0-9'.$allowed_utf8_chars.']*?)+$/usi', $var);
+							
+			if ($disallowed_utf8_chars != '')
+				$retval &= !(bool)preg_match("/[{$disallowed_utf8_chars}]+/siu", $var);
+			
 			
 			if (!$retval)
 				$this->AddError(self::ERROR_DOMAIN, $var, $name, $error);
 			
 			return $retval;
+		}
+		
+
+		/**
+		 * Return true if $var is valid e-mail. RFC-compliant.
+		 *
+		 * @param mixed $var
+		 * @param string $name
+		 * @param string $error
+		 * @return bool
+		 * @link http://www.linuxjournal.com/article/9585
+		 */
+		function IsEmail($var, $name = null, $error = null, $check_dns = false)
+		{
+			$email = $var;
+		   $isValid = true;
+		   $atIndex = strrpos($email, "@");
+		   if (is_bool($atIndex) && !$atIndex)
+		   {
+		      $isValid = false;
+		   }
+		   else
+		   {
+		      $domain = substr($email, $atIndex+1);
+		      $local = substr($email, 0, $atIndex);
+		      $localLen = strlen($local);
+		      $domainLen = strlen($domain);
+		      if ($localLen < 1 || $localLen > 64)
+		      {
+		         // local part length exceeded
+		         $isValid = false;
+		      }
+		      else if ($domainLen < 1 || $domainLen > 255)
+		      {
+		         // domain part length exceeded
+		         $isValid = false;
+		      }
+		      else if ($local[0] == '.' || $local[$localLen-1] == '.')
+		      {
+		         // local part starts or ends with '.'
+		         $isValid = false;
+		      }
+		      else if (preg_match('/\\.\\./', $local))
+		      {
+		         // local part has two consecutive dots
+		         $isValid = false;
+		      }
+		      else if (!preg_match('/^[A-Za-z0-9\\-\\.]+$/', $domain))
+		      {
+		         // character not valid in domain part
+		         $isValid = false;
+		      }
+		      else if (preg_match('/\\.\\./', $domain))
+		      {
+		         // domain part has two consecutive dots
+		         $isValid = false;
+		      }
+		      else if (!preg_match('/^(\\\\.|[A-Za-z0-9!#%&`_=\\/$\'*+?^{}|~.-])+$/',
+		                 str_replace("\\\\","",$local)))
+		      {
+		         // character not valid in local part unless 
+		         // local part is quoted
+		         if (!preg_match('/^"(\\\\"|[^"])+"$/',
+		             str_replace("\\\\","",$local)))
+		         {
+		            $isValid = false;
+		         }
+		      }
+		      if ($check_dns)
+		      {
+			      if ($isValid && !(checkdnsrr($domain,"MX") || checkdnsrr($domain,"A")))
+			      {
+			         // domain not found in DNS
+			         $isValid = false;
+			      }
+		      }
+		   }
+		   return $isValid;
+		}
+
+		
+		/**
+		 * Return true if $var is valid e-mail. RFC-compliant. Also checks in DNS.
+		 *
+		 * @param mixed $var
+		 * @param string $name
+		 * @param string $error
+		 * @return bool
+		 * @link http://www.linuxjournal.com/article/9585
+		 */
+		function IsEmailPlusDNS($var, $name = null, $error = null)
+		{
+			Validator::IsEmail($var, $name, $error, true);
 		}
 		
 		/**
@@ -291,9 +427,9 @@
 		 * @param string $error
 		 * @return bool
 		 */
-		public function IsEmail($var, $name = null, $error = null)
+		public function IsEmailRestrictive($var, $name = null, $error = null)
 		{
-			$retval = preg_match("/^[a-z0-9]+[a-z0-9_\.-]*[a-z0-9]+@([a-z0-9]+[a-z0-9-]*[a-z0-9]+\.)+[a-z]{2,5}$/i", $var);
+			$retval = preg_match("/^[a-zA-Z0-9]+([a-zA-Z0-9_\.-]*[a-zA-Z0-9])*?@([a-zA-Z0-9]+[a-zA-Z0-9-]*[a-zA-Z0-9]+\.)+[a-zA-Z]{2,5}$/i", $var);
 			
 			if (!$retval)
 				$this->AddError(self::ERROR_EMAIL, $var, $name, $error);

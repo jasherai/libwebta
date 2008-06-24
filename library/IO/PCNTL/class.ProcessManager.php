@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    IO
      * @subpackage PCNTL
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
 
 	/**
@@ -66,6 +60,8 @@
          */
         public $MaxChilds;
         
+        private $Logger;
+        
         /**
          * Proccess manager Constructor
          *
@@ -73,14 +69,16 @@
          */
         function __construct(&$SignalHandler)
         {
-            if ($SignalHandler instanceof SignalHandler)
+            $this->Logger = LoggerManager::getLogger('ProcessManager');
+        	
+        	if ($SignalHandler instanceof SignalHandler)
             {
                 $SignalHandler->ProcessManager = &$this;
                 $this->SignalHandler = $SignalHandler;
                 
                 $this->MaxChilds = 5;
                                   
-                Log::Log("Process initialized.", E_NOTICE);
+                $this->Logger->debug("Process initialized.");
             }
             else 
                 self::RaiseError("Invalid signal handler");  
@@ -107,7 +105,7 @@
             {
                 $this->MaxChilds = $num;
                 
-                Log::Log("Number of MaxChilds set to {$num}", E_NOTICE);
+                $this->Logger->debug("Number of MaxChilds set to {$num}");
             }
             else
                 self::RaiseError("You can only set MaxChilds *before* you Run() is executed.");
@@ -128,20 +126,20 @@
             // Set class property   
             $this->ProcessObject = $ProcessObject;
             
-            Log::Log("Executing 'OnStartForking' routine", E_NOTICE);
+            $this->Logger->debug("Executing 'OnStartForking' routine");
                 
             // Run routines before threading
             $this->ProcessObject->OnStartForking();  
             
-            Log::Log("'OnStartForking' successfully executed.", E_NOTICE);
+            $this->Logger->debug("'OnStartForking' successfully executed.");
 
             if (count($this->ProcessObject->ThreadArgs) == 0)
             {
-                Log::Log("ProcessObject::ThreadArgs is empty. Nothing to do.", E_NOTICE);
+                $this->Logger->debug("ProcessObject::ThreadArgs is empty. Nothing to do.");
                 return true;
             }
             
-            Log::Log("Executing ProcessObject::ForkThreads()", E_NOTICE);
+            $this->Logger->debug("Executing ProcessObject::ForkThreads()");
             
             // Start Threading
             $this->ForkThreads();
@@ -150,37 +148,56 @@
             $iteration = 1;          
             while (true)
         	{
-        		sleep(2);
         		if (count($this->PIDs) == 0)
         			break;
-        	    
+
+        		sleep(2);
         	    
         	    if ($iteration++ == 10)
         	    {
-        	        Log::Log("Main proccess waiting loop. PIDs(".implode(", ", $this->PIDs).")", E_NOTICE);
+        	        $this->Logger->debug("Goin to MPWL. PIDs(".implode(", ", $this->PIDs).")");
+        	        
+        	        //
+        	        // Zomby not needed.
+        	        //
+        	        
+        	        $pid = pcntl_wait($status, WNOHANG | WUNTRACED);
+        	        if ($pid > 0)
+		    		{
+		    		    $this->Logger->debug("MPWL: pcntl_wait() from child with PID# {$pid} (Exit code: {$status})");
+		  
+		    		    foreach((array)$this->PIDs as $kk=>$vv)
+		    			{
+		    				if ($vv == $pid)
+		    					unset($this->PIDs[$kk]);
+		    			}
+		    			
+		    			$this->ForkThreads();
+		    		}
         	        
         	        foreach ($this->PIDs as $k=>$pid)
         	        {
         	           $res = posix_kill($pid, 0);
-        	           Log::Log("Sending 0 signal to {$pid} = ".intval($res), E_NOTICE);
+        	           $this->Logger->debug("MPWL: Sending 0 signal to {$pid} = ".intval($res));
         	           
         	           if ($res === FALSE)
         	           {
-        	               Log::Log("Deleting '{$pid}' from PIDs query", E_NOTICE);
+        	               $this->Logger->debug("MPWL: Deleting '{$pid}' from PIDs query");
         	               unset($this->PIDs[$k]);
         	           }
         	        }
+
         	        $iteration = 1;
         	    }
         	    
         	}
             
-        	Log::Log("All childs exited. Executing OnEndForking routine", E_NOTICE);
+        	$this->Logger->debug("All childs exited. Executing OnEndForking routine");
         	   
         	// Run routines after forking
             $this->ProcessObject->OnEndForking();  
             
-            Log::Log("Process complete. Exiting...", E_NOTICE);
+            $this->Logger->debug("Process complete. Exiting...");
                 
             exit();
         }
@@ -210,7 +227,7 @@
          */
         final private function Fork($arg)
         {
-            $pid = @pcntl_fork();
+        	$pid = @pcntl_fork();
 			if(!$pid) 
 			{
 			    try
@@ -219,13 +236,14 @@
 			    }
 			    catch (Exception $err)
 			    {
-			        Log::Log($err->getMessage(), E_CORE_ERROR);
+			        $this->Logger->error($err->getMessage());
 			    }
 				exit();
 			}
 			else
 			{
-			    Log::Log("Child with PID# {$pid} successfully forked", E_NOTICE);
+			    
+				$this->Logger->debug("Child with PID# {$pid} successfully forked");
                     
 			    $this->PIDs[] = $pid;
 			}

@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    NET_API
      * @subpackage AWS
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */ 
 
 	Core::Load("NET/API/AWS/WSSESoapClient");
@@ -65,6 +59,13 @@
 	    public $userData;
 	    public $addressingType = "public";
 	    public $instanceType = "";
+	    public $placement;
+	    
+	    public function SetAvailabilityZone($zoneName)
+	    {
+	    	$this->placement = new stdClass();
+	    	$this->placement->availabilityZone = $zoneName;
+	    }
 	    
 	    public function AddSecurityGroup($groupName)
 	    {
@@ -123,7 +124,7 @@
 	
 	class AmazonEC2 
     {
-	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2007-08-29.ec2.wsdl';
+	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2008-02-01.ec2.wsdl';
 	    const KEY_PATH = '/etc/awskey.pem';
 	    const CERT_PATH = '/etc/awscert.pem';
 	    const USER_AGENT = 'Libwebta AWS Client (http://webta.net)';
@@ -146,6 +147,23 @@
 			$this->EC2SoapClient->KeyPath = $key_path;
 			$this->EC2SoapClient->CertPath = $cert_path;
 		}		
+		
+		public function DescribeAvailabilityZones()
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->DescribeAvailabilityZones();
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
 		
 		/**
 		 * The AuthorizeSecurityGroupIngress operation adds permissions to a security group.
@@ -170,10 +188,13 @@
 				$stdClass->ipPermissions = $ipPermissions;
 
 				$response = $this->EC2SoapClient->AuthorizeSecurityGroupIngress($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -192,10 +213,13 @@
 		    try 
 			{
 				$response = $this->EC2SoapClient->DeleteSecurityGroup(array("groupName" => $groupName));
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -222,10 +246,13 @@
 				$stdClass->groupDescription = $groupDescription;
 
 				$response = $this->EC2SoapClient->CreateSecurityGroup($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -245,10 +272,13 @@
 		    try 
 			{
 				$response = $this->EC2SoapClient->DescribeSecurityGroups($securityGroupSet);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -271,10 +301,13 @@
 				$ModifyImageAttributeType->launchPermission = array( $operation => array('item' => $item ));
 			    				
 			    $response = $this->EC2SoapClient->ModifyImageAttribute($ModifyImageAttributeType);
+			    
+			    if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -289,10 +322,13 @@
 				$DescribeImageAttributeType->imageId = $imageId;
 			    
 			    $response = $this->EC2SoapClient->DescribeImageAttribute($DescribeImageAttributeType);
+			    
+			    if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -304,10 +340,13 @@
 			{
 				$response = $this->EC2SoapClient->DescribeImages($DescribeImagesType);
 				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -325,10 +364,13 @@
 				
 				$response = $this->EC2SoapClient->DescribeInstances($objInstances);
 				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);
+			    throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;
@@ -343,10 +385,13 @@
             {
             	$objkeyPairs = new keyPairs();
             	$response = $this->EC2SoapClient->DescribeKeyPairs($objkeyPairs);	
+            	
+            	if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
             } 
             catch (SoapFault $e) 
             {
-                Core::RaiseError($e->getMessage(), E_ERROR);
+                throw new Exception($e->getMessage(), E_ERROR);
             }
             
             return $response;
@@ -371,10 +416,13 @@
                     array_push($instancesSet->instancesSet->item, array("instanceId" => $instance));
 			    
                 $response = $this->EC2SoapClient->TerminateInstances($instancesSet);
+                
+                if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR); 
+			    throw new Exception($e->getMessage(), E_ERROR); 
 			}
 			
 			return $response;
@@ -390,10 +438,13 @@
                     array_push($instancesSet->instancesSet->item, array("instanceId" => $instance));
 			    
                 $response = $this->EC2SoapClient->RebootInstances($instancesSet);
+                
+                if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR); 
+			    throw new Exception($e->getMessage(), E_ERROR); 
 			}
 			
 			return $response;
@@ -427,10 +478,13 @@
             try 
             {
                 $response = $this->EC2SoapClient->RunInstances($RunInstancesType);
+                
+                if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
             } 
             catch (SoapFault $e) 
             {
-                Core::RaiseError($e->getMessage(), E_ERROR); 
+                throw new Exception($e->getMessage(), E_ERROR); 
             }
             
             return $response;
@@ -441,10 +495,13 @@
             try 
             {
                 $response = $this->EC2SoapClient->DeleteKeyPair(array('keyName' => $keyName));
+                
+                if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
             } 
             catch (SoapFault $e) 
             {
-                Core::RaiseError($e->getMessage(), E_ERROR);
+                throw new Exception($e->getMessage(), E_ERROR);
             }
             
             return $response;
@@ -456,10 +513,13 @@
 		    {
 				$response = $this->EC2SoapClient->CreateKeyPair(array('keyName' => $keyName));
 				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
 			} 
 			catch (SoapFault $e) 
 			{
-			    Core::RaiseError($e->getMessage(), E_ERROR);	
+			    throw new Exception($e->getMessage(), E_ERROR);	
 			}
 	
 			return $response;

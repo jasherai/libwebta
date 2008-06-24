@@ -4,22 +4,16 @@
      *
      * LICENSE
      *
-     * This program is protected by international copyright laws. Any           
-	 * use of this program is subject to the terms of the license               
-	 * agreement included as part of this distribution archive.                 
-	 * Any other uses are strictly prohibited without the written permission    
-	 * of "Webta" and all other rights are reserved.                            
-	 * This notice may not be removed from this source code file.               
-	 * This source file is subject to version 1.1 of the license,               
-	 * that is bundled with this package in the file LICENSE.                   
-	 * If the backage does not contain LICENSE file, this source file is   
-	 * subject to general license, available at http://webta.net/license.html
+	 * This source file is subject to version 2 of the GPL license,
+	 * that is bundled with this package in the file license.txt and is
+	 * available through the world-wide-web at the following url:
+	 * http://www.gnu.org/copyleft/gpl.html
      *
      * @category   LibWebta
      * @package    IO
      * @subpackage Basic
-     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://webta.net/copyright.html
-     * @license    http://webta.net/license.html
+     * @copyright  Copyright (c) 2003-2007 Webta Inc, http://www.gnu.org/licenses/gpl.html
+     * @license    http://www.gnu.org/licenses/gpl.html
      */
     
 	/**
@@ -35,26 +29,35 @@
      */
 	class IOTool extends Core 
 	{
-		
+	
 		public static function GetFileMimeType($path)
 		{
 		    if (file_exists($path))
 		    {
                 try
                 {
-    		        if (function_exists("mime_content_type"))
-                        return mime_content_type($path);
-                    elseif (function_exists("finfo_open")) 
+    		        if (class_exists("finfo")) 
                     {
-                        $finfo = @finfo_open(FILEINFO_MIME);
+                    	// Probe magick database file
+                    	$magic_db_path = dirname(__FILE__) . "/magic"; 
+                    	
+						if (!file_exists($magic_db_path))
+							$magic_db_path = "/usr/share/file/magic";
+                    	
+						// Create fifo instance
+                        $finfo = new finfo(FILEINFO_MIME, $magic_db_path);
+
                         
                         if ($finfo)
-                            $retval = @finfo_file($finfo, $path);
+                            $retval = @$finfo->file($path);
                         else 
-                            Core::RaiseError("Cannot open got damn fifo database", E_ERROR);
-                        	
-                        @finfo_close($finfo);
+                            Core::RaiseError("Cannot open FIFO database. Tried {$magic_db_path}", E_ERROR);
+
                         return $retval;
+                    }
+                    elseif (function_exists("mime_content_type"))
+                    {
+                        return mime_content_type($path);
                     }
                     else 
                     {
@@ -96,7 +99,7 @@
           	}
           	@rmdir($path);
           	
-          	return file_exists($path);
+          	return (!file_exists($path));
 		}
 		
 		/**

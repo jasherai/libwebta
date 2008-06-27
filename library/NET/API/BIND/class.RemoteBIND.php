@@ -130,7 +130,7 @@
 			
 			if ($inittransport)
 				if (!$this->InitTransport())
-					Core::RaiseError("Cannot init transport");
+					throw new Exception("Cannot init transport");
 			
 			$this->DoMakeBackup = false;
 			$this->HaveNewZones = 0;
@@ -212,8 +212,22 @@
 		* @param string $content Zone text
 		* @return bool Operation status
 		*/
-		protected  function SaveZoneFile($name, $content)
+		public  function SaveZoneFile($name, $content)
 		{
+			$name = "{$name}.db";
+			
+			// Make backup
+			if ($this->DoMakeBackup)
+			{
+				$zone_db_bcp = $name.".".time();
+				
+				// Create backup
+				if ($this->Transport == "ssh")
+					$this->SSH2->Exec("/bin/mv {$this->RootPath}/{$name} {$this->RootPath}/{$zone_db_bcp}");
+				elseif ($this->Transport == "ftp")
+					$this->FTP->Rename("/", basename($zone_db), basename($name));
+			}
+			
 			$tempfn = tempnam("","");
 			$temp = fopen($tempfn, "w+");
 			fwrite($temp, $content);
@@ -250,6 +264,18 @@
 				return false;
 		}
 		
+		public function AddZone($name)
+		{
+			$filename = "{$name}.db";
+			
+			$template = str_replace("{zone}", $name, $this->Template);
+			$template = str_replace("{db_filename}", $filename, $template);
+			
+			$this->Conf = $this->Conf . $template;
+			
+			$this->NewZonesCount++;
+			return $this->SaveConf();
+		}
 		
 		/**
 		* Save DNS zne into zone file
@@ -266,19 +292,7 @@
 			$filename = "{$name}.db";
 			
 			if ($zone_db)
-			{
-				// Make backup
-				if ($this->DoMakeBackup)
-				{
-					$zone_db_bcp = $name.".".time();
-					
-					// Create backup
-					if ($this->Transport == "ssh")
-						$this->SSH2->Exec("/bin/mv {$this->RootPath}/{$name} {$this->RootPath}/{$zone_db_bcp}");
-					elseif ($this->Transport == "ftp")
-						$this->FTP->Rename("/", basename($zone_db), basename($name));
-				}
-				
+			{				
 				// Save zone contents to zone file
 				if (!$this->SaveZoneFile($filename, $content))
 					$this->RaiseWarning("Cannot save zone file for {$filename}");
@@ -377,16 +391,19 @@
 		* @return bool Operation status
 		* @todo Delete zonename.db file?
 		*/
-		public function DeleteZone($name)
+		public function DeleteZone($name, $reload_rndc = true)
 		{
 			
-			preg_match_all("/zone[^A-Za-z0-9]*({$name})[^{]+{[^;]+;([^A-Za-z0-9]+)file[^A-Za-z0-9;]*([A-Za-z0-9\.-]+)[^}]+};/msi", $this->Conf, $matches); 
+			preg_match_all("/zone[^A-Za-z0-9]*({$name})[^{]+{[^;]+;([^A-Za-z0-9]+)file[^A-Za-z0-9;]*([A-Za-z0-9\.-]+)[^}]+};/msi", $this->Conf, $matches);
+
 			if ($matches[1][0] == $name)
 			{
 				$filename = $matches[3][0];
 				$this->Conf = preg_replace("/zone\s+\"{$name}\"\s+\{.*?\};/msi", "", $this->Conf);
 				$this->SaveConf();
-				$this->ReloadRndc();
+				
+				if ($reload_rndc)
+					$this->ReloadRndc();
 				
 				if ($this->DoMakeBackup)
 				{
@@ -399,6 +416,10 @@
 						$this->FTP->Rename("/", basename($filename), basename("{$filename}.".time()));
 					}
 				}
+			}
+			else
+			{
+				$this->Logger->info("Zone {$name} not found in named.conf");
 			}
 			return true;
 		}

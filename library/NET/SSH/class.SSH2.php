@@ -287,7 +287,8 @@
 					$this->StdErr = @fread($stderr_stream, 4096);
 					@fclose($stderr_stream);
 					
-					$this->Logger->info("STDERR: {$this->StdErr}");
+					if ($this->StdErr != '')
+						$this->Logger->info("STDERR: {$this->StdErr}");
 					
 					// Read from stream
 					while($l = @fgets($stream, 4096))

@@ -41,7 +41,7 @@
         	$this->SSH2 = new SSH2();
         	
         	// Failed password
-        	$retval = $this->SSH2->Connect("ns1.scalr.net", 22, "named", "ND78239hdu^&^2e");
+        	$retval = $this->SSH2->Connect("ns1.server.net", 22, "named", "********");
         	$this->AssertTrue($retval, "Log in with password");
         	
         	$base = dirname(__FILE__);
@@ -55,7 +55,7 @@
         	
 		
         	// Failed password
-        	$retval = $this->SSH2->Connect("67.19.90.82", 22, "named", "78y6^T%^fg32ieg");
+        	$retval = $this->SSH2->Connect("ns2.server.net", 22, "named", "*******");
         	$this->AssertTrue($retval, "Log in with password");
         	
         	$base = dirname(__FILE__);

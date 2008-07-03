@@ -123,8 +123,8 @@
 			// Paranoic eh?
 			while (!$this->IsConfClean())
 			{
-				$this->Conf = preg_replace("/\\r/m", "", $this->NamedConfPath);
-				$this->Conf = preg_replace("/\\n\\n\\n/m", "\n\n", $this->NamedConfPath);
+				//$this->Conf = str_replace("[\r]+", "", $this->Conf);
+				$this->Conf = str_replace("\n\n", "\n", $this->Conf);
 			}
 		}
 		
@@ -136,7 +136,7 @@
 		*/
 		public function IsConfClean()
 		{
-			$retval = preg_match("/\\n\\n\\n/m", $this->NamedConfPath);
+			$retval = preg_match("/\n\n\n/", $this->Conf);
 			return (bool) !$retval;
 		}
 		

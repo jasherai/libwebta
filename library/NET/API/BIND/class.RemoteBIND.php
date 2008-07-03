@@ -268,13 +268,18 @@
 		{
 			$filename = "{$name}.db";
 			
-			$template = str_replace("{zone}", $name, $this->Template);
-			$template = str_replace("{db_filename}", $filename, $template);
-			
-			$this->Conf = $this->Conf . $template;
-			
-			$this->NewZonesCount++;
-			return $this->SaveConf();
+			if (!$this->IsZoneExists($name))
+			{
+				$template = str_replace("{zone}", $name, $this->Template);
+				$template = str_replace("{db_filename}", $filename, $template);
+				
+				$this->Conf = $this->Conf . $template;
+				
+				$this->NewZonesCount++;
+				return $this->SaveConf();
+			}
+			else
+				return true;
 		}
 		
 		/**

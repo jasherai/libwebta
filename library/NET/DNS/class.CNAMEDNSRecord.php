@@ -53,8 +53,8 @@
 			$this->Type = "CNAME";
 			
 			// Name
-			if (($this->Validator->MatchesPattern($name, self::PAT_NON_FDQN) ||
-				$this->Validator->IsDomain($name)) && !$this->Validator->IsIPAddress(rtrim($name, ".")) || $name == "*")
+			if ($this->Validator->MatchesPattern($name, self::PAT_NON_FDQN) ||
+				($this->Validator->IsDomain($name)) && !$this->Validator->IsIPAddress(rtrim($name, ".")) || $name == "*")
 				$this->Name = $name;
 			else 
 			{

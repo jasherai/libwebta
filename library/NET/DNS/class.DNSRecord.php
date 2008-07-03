@@ -37,7 +37,7 @@
 		
 		public $DefaultTTL;
 		
-		const PAT_NON_FDQN = '/^[A-Za-z0-9]+[A-Za-z0-9-]*[A-Za-z0-9]+$/';
+		const PAT_NON_FDQN = '/^[A-Za-z0-9]+([A-Za-z0-9-]*[A-Za-z0-9]+)?$/';
 		const PAT_CIDR = '/^([0-9]{1,3}\.){3}[0-9]{1,3}\/[0-9]{1,3}$/si';
 		
 		function __construct ()

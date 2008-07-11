@@ -400,7 +400,7 @@
                         }
                         catch (ADODB_Exception $e)
                         {
-                           Core::RaiseError("Cannot connect to database", E_ERROR);
+							Core::RaiseError("Cannot connect to database: {$e->getMessage()}", E_ERROR);
                         }
                                                   	
                     	if (!self::$DB[$conn_type] || !self::$DB[$conn_type]->IsConnected()) 

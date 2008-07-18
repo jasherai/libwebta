@@ -45,8 +45,15 @@
         	
         	if (!function_exists("pcntl_signal"))
                 self::RaiseError("Function pcntl_signal() not found. PCNTL must be enabled in PHP.", E_ERROR);
-            
-            $this->Logger->debug("Begin add handler to signals...");
+        }
+        
+        /**
+         * Set handlers to signals
+         *
+         */
+        final public function SetSignalHandlers()
+        {
+        	$this->Logger->debug("Begin add handler to signals...");
                 
             // Add default handlers
             $res = @pcntl_signal(SIGCHLD, array(&$this,"HandleSignals"));
@@ -57,6 +64,9 @@
                         
             $res = @pcntl_signal(SIGABRT, array(&$this,"HandleSignals"));
             $this->Logger->debug("Handle SIGABRT = {$res}");
+            
+            $res = @pcntl_signal(SIGUSR2, array(&$this,"HandleSignals"));
+            $this->Logger->debug("Handle SIGUSR2 = {$res}");
         }
         
         /**
@@ -68,8 +78,17 @@
         final public function HandleSignals($signal)
         {
             $this->Logger->debug("HandleSignals received signal {$signal}");            
-            $pid = @pcntl_wait($status, WNOHANG | WUNTRACED);
             
+            if ($signal == SIGUSR2)
+            {
+            	$this->Logger->debug("Recived SIGUSR2 from one of childs");
+            	$this->ProcessManager->PIDs = array();
+            	$this->ProcessManager->ForkThreads();
+            	return;
+            }
+            
+            $pid = @pcntl_wait($status, WNOHANG | WUNTRACED);
+                        
             if ($pid > 0)
     		{
     		    $this->Logger->debug("Application received signal {$signal} from child with PID# {$pid} (Exit code: {$status})");

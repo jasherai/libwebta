@@ -86,6 +86,53 @@
 		}
 		
 		/**
+		 * List all objects on bucket
+		 *
+		 * @param string $bucket_name
+		 * @param string $prefix
+		 * @return array
+		 */
+		public function ListBucket($bucket_name, $prefix = "")
+		{
+			$timestamp = $this->GetTimestamp();
+		    
+		    try 
+		    {
+    		    $res = $this->S3SoapClient->ListBucket(
+            		                                      array(  
+            		                                              "AWSAccessKeyId" => $this->AWSAccessKeyId,
+            		                                      		  "Bucket"		   => $bucket_name,
+            		                                      		  "Prefix"		   => $prefix,
+            		                                              "Timestamp"      => $timestamp,
+            		                                              "Signature"      => $this->GetSOAPSignature("ListBucket", $timestamp)
+            		                                           )
+            		                                     );
+            		                                                 		                                                   
+                if (!($res instanceof SoapFault))
+                {
+                    $retval = $res->ListBucketResponse->Contents;
+                    if (!$retval)
+                    	return array();
+                    else
+                    {
+                    	if ($retval instanceof stdClass)
+                    		$retval = array($retval);
+                    		
+                    	return $retval;
+                    }
+                }
+                else 
+                {
+                	throw new Exception($res->faultString ? $res->faultString : $res->getMessage(), E_ERROR);
+                }
+		    }
+		    catch (SoapFault $e)
+		    {
+		        throw new Exception($e->faultString, E_ERROR);
+		    }
+		}
+		
+		/**
 		 * The ListBuckets operation returns a list of all buckets owned by the sender of the request.
 		 *
 		 * @return array
@@ -105,7 +152,13 @@
             		                                     );
             		                                                 		                                                   
                 if (!($res instanceof SoapFault))
-                    return $res->ListAllMyBucketsResponse->Buckets;
+                {
+                    $retval = $res->ListAllMyBucketsResponse->Buckets->Bucket;
+                    if ($retval instanceof stdClass)
+                    	$retval = array($retval);
+                	
+                	return $retval;
+                }
                 else 
                 {
                 	throw new Exception($res->faultString ? $res->faultString : $res->getMessage(), E_ERROR);
@@ -225,6 +278,38 @@
                 Core::RaiseWarning($e->__toString(), E_ERROR);
 		        return false;
             }
+		}
+		
+		/**
+		 * Delete bucket from S3
+		 *
+		 * @param string $bucket_name
+		 * @return boolean
+		 */
+		public function DeleteBucket($bucket_name)
+		{
+			$timestamp = $this->GetTimestamp();
+		    
+		    try 
+		    {
+    		    $res = $this->S3SoapClient->DeleteBucket(
+            		                                      array(  
+            		                                              "Bucket" => $bucket_name,
+            		                                              "AWSAccessKeyId" => $this->AWSAccessKeyId,
+            		                                              "Timestamp"      => $timestamp,
+            		                                              "Signature"      => $this->GetSOAPSignature("DeleteBucket", $timestamp)
+            		                                           )
+            		                                     );
+
+				if (!($res instanceof SoapFault))
+                    return true;
+                else 
+                    throw new Exception($res->faultString, E_ERROR);
+		    }
+		    catch (SoapFault $e)
+		    {
+		        throw new Exception($e->faultString, E_ERROR);
+		    }
 		}
 		
 		/**

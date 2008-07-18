@@ -132,12 +132,15 @@
             $this->ProcessObject->OnStartForking();  
             
             $this->Logger->debug("'OnStartForking' successfully executed.");
-
+            
             if (count($this->ProcessObject->ThreadArgs) == 0)
             {
                 $this->Logger->debug("ProcessObject::ThreadArgs is empty. Nothing to do.");
                 return true;
             }
+            
+            // Add handlers to signals
+            $this->SignalHandler->SetSignalHandlers();
             
             $this->Logger->debug("Executing ProcessObject::ForkThreads()");
             
@@ -197,7 +200,7 @@
         	// Run routines after forking
             $this->ProcessObject->OnEndForking();  
             
-            $this->Logger->debug("Process complete. Exiting...");
+            $this->Logger->debug("Main process complete. Exiting...");
                 
             exit();
         }
@@ -213,9 +216,12 @@
             {
                 $arg = array_shift($this->ProcessObject->ThreadArgs);
                 
-                $this->Fork($arg);
-                
-                usleep(500000);
+                if ($arg)
+                {
+                	$this->Fork($arg);
+                	
+                	usleep(500000);
+                }
             }
         }
         
@@ -232,7 +238,10 @@
 			{
 			    try
 			    {
-                    $this->ProcessObject->StartThread($arg);
+                    if ($this->ProcessObject->IsDaemon)
+                    	$this->DemonizeProcess();
+                    	
+			    	$this->ProcessObject->StartThread($arg);
 			    }
 			    catch (Exception $err)
 			    {
@@ -247,6 +256,26 @@
                     
 			    $this->PIDs[] = $pid;
 			}
+        }
+        
+    	final private function DemonizeProcess()
+        {
+        	$this->Logger->debug("Daemonizing process...");
+        	
+        	// Make the current process a session leader. 
+        	if (posix_setsid() == -1)
+            {
+            	$this->Logger->fatal("posix_setsid() return -1");
+            	exit();
+            }
+            
+            // We need wait for some time
+            sleep(2);
+            
+            // Send signal about demonize this child 
+            posix_kill(posix_getppid(), SIGUSR2);
+            
+            $this->Logger->debug("Process successfully demonized.");
         }
     }
 ?>

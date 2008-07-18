@@ -44,6 +44,24 @@
 		 */
 		public $KeyPath;
 		
+		protected $ObjKey;
+		
+		protected $BinaryToken;
+		
+		public function SetAuthKeys($key, $cert, $isfile)
+		{
+			/* create new XMLSec Key using RSA SHA-1 and type is private key */
+			$this->ObjKey = new XMLSecurityKey(XMLSecurityKey::RSA_SHA1, array('type'=>'private'));
+		
+			/* load the private key from file - last arg is bool if key in file (TRUE) or is string (FALSE) */
+			$this->ObjKey->loadKey($key, $isfile);
+			
+			if ($isfile == true)		
+				$this->BinaryToken = file_get_contents($cert);
+			else
+				$this->BinaryToken = $cert;
+		}
+		
 		function __doRequest($request, $location, $saction, $version) 
 		{		    
 		    $doc = new DOMDocument('1.0');
@@ -54,16 +72,12 @@
 			/* add Timestamp with no expiration timestamp */
 		 	$objWSSE->addTimestamp();
 		
-			/* create new XMLSec Key using RSA SHA-1 and type is private key */
-			$objKey = new XMLSecurityKey(XMLSecurityKey::RSA_SHA1, array('type'=>'private'));
-		
-			/* load the private key from file - last arg is bool if key in file (TRUE) or is string (FALSE) */
-			$objKey->loadKey($this->KeyPath, TRUE);
+			
 		
 			try
 			{
                 /* Sign the message - also signs appropraite WS-Security items */
-                $objWSSE->signSoapDoc($objKey);
+                $objWSSE->signSoapDoc($this->ObjKey);
 			}
 			catch (Exception $e)
 			{
@@ -71,7 +85,7 @@
 			}
 		
 			/* Add certificate (BinarySecurityToken) to the message and attach pointer to Signature */
-			$token = $objWSSE->addBinaryToken(file_get_contents($this->CertPath));
+			$token = $objWSSE->addBinaryToken($this->BinaryToken);
 			$objWSSE->attachTokentoSig($token);
 					
 			try

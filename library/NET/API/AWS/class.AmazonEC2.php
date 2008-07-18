@@ -48,6 +48,20 @@
 	    public $launchPermission;
 	};
 	
+	class DescribeKeyPairsType
+	{
+		public $keySet;
+		
+		public function AddKey($key_name)
+		{
+			$item = new stdClass();
+			$item->item = new stdClass();
+			$item->item->keyName = $key_name;
+			
+			$this->keySet[] = $item;
+		}
+	}
+	
 	class RunInstancesType
 	{
 	    public $imageId;
@@ -128,24 +142,35 @@
 	    const KEY_PATH = '/etc/awskey.pem';
 	    const CERT_PATH = '/etc/awscert.pem';
 	    const USER_AGENT = 'Libwebta AWS Client (http://webta.net)';
+	    const CONNECTION_TIMEOUT = 15;
 	    
 		private $EC2SoapClient = NULL;
-	
-		public function __construct($key_path = null, $cert_path = null) 
+		
+		public static $KeysFileDecryptObject = null;
+		
+		public function __construct($key = null, $cert = null, $isfile = false) 
 		{
 			
 			// Defaultize
-			$key_path = $key_path == null ? self::KEY_PATH : $key_path;
-			$cert_path = $cert_path == null ? self::CERT_PATH : $cert_path;
+			if ($key == null || $cert == null)
+				$isfile = true;
+				
+			$key = $key == null ? self::KEY_PATH : $key;
+			$cert = $cert == null ? self::CERT_PATH : $cert;
 			
-	      	$this->EC2SoapClient  = new WSSESoapClient(AmazonEC2::EC2WSDL, array('trace' => 1, 'exceptions'=> 0, 'user_agent' => AmazonEC2::USER_AGENT));
+	      	$this->EC2SoapClient  = new WSSESoapClient(AmazonEC2::EC2WSDL, array(
+	      		'connection_timeout' => self::CONNECTION_TIMEOUT, 
+	      		'trace' => 1, 
+	      		'exceptions'=> 0, 
+	      		'user_agent' => AmazonEC2::USER_AGENT)
+	      	);
+	      		      	
+	      	$this->EC2SoapClient->SetAuthKeys($key, $cert, $isfile);
+	      	
 			/* Force location path - MUST INCLUDE trailing slash
 			BUG in ext/soap that does not automatically add / if URL does not contain path. this causes POST header to be invalid 
 			Seems like will be fixed in PHP 5.2 Release*/
 			$this->EC2SoapClient->location = 'https://ec2.amazonaws.com/';
-			
-			$this->EC2SoapClient->KeyPath = $key_path;
-			$this->EC2SoapClient->CertPath = $cert_path;
 		}		
 		
 		public function DescribeAvailabilityZones()
@@ -378,13 +403,15 @@
 	
 	
 	
-		public function DescribeKeyPairs($keyName=NULL) 
+		public function DescribeKeyPairs(DescribeKeyPairsType $DescribeKeyPairsType = null) 
 		{
 	
             try 
             {
-            	$objkeyPairs = new keyPairs();
-            	$response = $this->EC2SoapClient->DescribeKeyPairs($objkeyPairs);	
+            	if (!$DescribeKeyPairsType)
+            		$DescribeKeyPairsType = new DescribeKeyPairsType();
+            	            	
+            	$response = $this->EC2SoapClient->DescribeKeyPairs($DescribeKeyPairsType);	
             	
             	if ($response instanceof SoapFault)
 					throw new Exception($response->faultstring, E_ERROR);

@@ -233,16 +233,25 @@
 			fwrite($temp, $content);
 			fclose($temp);
 			
-			if ($this->Transport == "ssh")
+			try
 			{
-				$retval = $this->SSH2->SendFile("{$this->RootPath}/{$name}", $tempfn);
-				$this->SSH2->Exec("chown named:named {$this->RootPath}/{$name}");
-				$this->SSH2->Exec("chmod 0744 {$this->RootPath}/{$name}");
+				if ($this->Transport == "ssh")
+				{
+					$retval = $this->SSH2->SendFile("{$this->RootPath}/{$name}", $tempfn);
+					$this->SSH2->Exec("chown {$this->Authinfo["login"]}:{$this->Authinfo["login"]} {$this->RootPath}/{$name}");
+					$this->SSH2->Exec("chmod 0744 {$this->RootPath}/{$name}");
+				}
+				elseif($this->Transport == "ftp")
+					$retval = $this->FTP->SendFile("{$this->RootPath}", "{$name}", $tempfn, 1);
+					
+				@unlink($tempfn);
 			}
-			elseif($this->Transport == "ftp")
-				$retval = $this->FTP->SendFile("{$this->RootPath}", "{$name}", $tempfn, 1);
-			
-			@unlink($tempfn);
+			catch(Exception $e)
+			{
+				@unlink($tempfn);
+				
+				throw new $e;
+			}
 			
 			return $retval;
 		}
@@ -258,13 +267,35 @@
 		{
 		    preg_match_all("/zone[^A-Za-z0-9]*({$name})[^{]+{[^;]+;([^A-Za-z0-9]+)file[^A-Za-z0-9;]*([A-Za-z0-9\.\/-]+)[^}]+};/msi", $this->Conf, $matches); 
 			
-			if ($matches[1][0] == $name)
+		    if ($matches[1][0] == $name)
 				return $matches[3][0];
 			else
 				return false;
 		}
 		
-		public function AddZone($name)
+		public function UpdateZoneDirectives($name, $allow_transfer = "none")
+		{
+			preg_match_all("/^[^;#]*zone\W*({$name})\W+{(.*?)^\W*};$/msi", $this->Conf, $matches);
+			
+			if ($matches[1][0] == $name)
+			{
+				$filename = "{$name}.db";
+				
+				$template = str_replace("{zone}", $name, $this->Template);
+				$template = str_replace("{db_filename}", $filename, $template);
+				$template = str_replace("{allow_transfer}", $allow_transfer, $template);
+				
+				$this->Conf = str_replace($matches[0][0], $template, $this->Conf);
+				
+				return $this->SaveConf();	
+			}
+			else
+			{
+				throw new Exception("Zone {$name} doesn't exist in named.conf");
+			}
+		}
+		
+		public function AddZone($name, $allow_transfer = "none")
 		{
 			$filename = "{$name}.db";
 			
@@ -272,6 +303,7 @@
 			{
 				$template = str_replace("{zone}", $name, $this->Template);
 				$template = str_replace("{db_filename}", $filename, $template);
+				$template = str_replace("{allow_transfer}", $allow_transfer, $template);
 				
 				$this->Conf = $this->Conf . $template;
 				
@@ -289,7 +321,7 @@
 		* @param string $content Zone content
 		* @return bool Operation status
 		*/
-		public function SaveZone($name, $content, $reloadndc = true)
+		public function SaveZone($name, $content, $reloadndc = true, $allow_transfer = "none")
 		{
 			// Delete if already exists in named.conf
 			$zone_db = $this->IsZoneExists($name);
@@ -306,6 +338,7 @@
 			{
 				$template = str_replace("{zone}", $name, $this->Template);
 				$template = str_replace("{db_filename}", $filename, $template);
+				$template = str_replace("{allow_transfer}", $allow_transfer, $template);
 				
 				$this->Conf = $this->Conf . $template;
 				
@@ -396,15 +429,15 @@
 		* @return bool Operation status
 		* @todo Delete zonename.db file?
 		*/
-		public function DeleteZone($name, $reload_rndc = true)
+		public function DeleteZone($name, $reload_rndc = true, $remove_zone_file = false)
 		{
+			preg_match_all("/^[^;#]*zone\W*({$name})\W+{(.*?)^\W*};$/msi", $this->Conf, $matches);
 			
-			preg_match_all("/zone[^A-Za-z0-9]*({$name})[^{]+{[^;]+;([^A-Za-z0-9]+)file[^A-Za-z0-9;]*([A-Za-z0-9\.-]+)[^}]+};/msi", $this->Conf, $matches);
-
 			if ($matches[1][0] == $name)
 			{
-				$filename = $matches[3][0];
-				$this->Conf = preg_replace("/zone\s+\"{$name}\"\s+\{.*?\};/msi", "", $this->Conf);
+				preg_match("/file\W+(.*?)\W+\s/si", $matches[2][0], $m);
+				$filename = $m[1];
+				$this->Conf = str_replace($matches[0][0], "", $this->Conf);				
 				$this->SaveConf();
 				
 				if ($reload_rndc)
@@ -412,20 +445,34 @@
 				
 				if ($this->DoMakeBackup)
 				{
+					$this->Logger->info("Backup {$this->RootPath}/{$filename}");
+					
 					if ($this->Transport == "ssh")
-					{
 						$this->SSH2->Exec("/bin/mv {$this->RootPath}/{$filename} {$this->RootPath}/{$filename}.".time());
-					}
 					elseif ($this->Transport == "ftp")
-					{
 						$this->FTP->Rename("/", basename($filename), basename("{$filename}.".time()));
+				}
+				else
+				{
+					if ($remove_zone_file)
+					{
+						$this->Logger->info("Removing {$this->RootPath}/{$filename}");
+						
+						if ($this->Transport == "ssh")
+							$this->SSH2->Exec("rm -f {$this->RootPath}/{$filename}");
+						elseif ($this->Transport == "ftp")
+						{
+							//TODO:
+						}
 					}
 				}
+					
 			}
 			else
 			{
 				$this->Logger->info("Zone {$name} not found in named.conf");
 			}
+			
 			return true;
 		}
 		
@@ -488,6 +535,8 @@
 		*/
 		public function ReloadRndc()
 		{
+			$this->Logger->info("Execute rndc reload");
+			
 			if ($this->Transport == "ssh")
 			{
 				return $this->SSH2->Exec("{$this->Rndc} reload");

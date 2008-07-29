@@ -173,11 +173,79 @@
 			$this->EC2SoapClient->location = 'https://ec2.amazonaws.com/';
 		}		
 		
+		/**
+		 * The GetConsoleOutput operation retrieves console output for the specified instance. 
+		 *
+		 * @param string $instance_id
+		 * @return stdClass
+		 */
+		public function GetConsoleOutput($instance_id)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+			    $stdClass->instanceId = $instance_id;
+
+				$response = $this->EC2SoapClient->GetConsoleOutput($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;	
+		}
+		
+		/**
+		 * The DescribeAvailabilityZones operation displays availability zones that are currently available to the account and their states. 
+		 *
+		 * @return stdClass
+		 */
 		public function DescribeAvailabilityZones()
 		{
 			try 
 			{
 				$response = $this->EC2SoapClient->DescribeAvailabilityZones();
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The RevokeSecurityGroupIngress operation revokes permissions from a security group. 
+		 * The permissions used to revoke must be specified using the same values used to grant 
+		 * the permissions. 
+		 * Permissions are specified by IP protocol (TCP, UDP, or ICMP), the source of the request 
+		 * (by IP range or an Amazon EC2 user-group pair), the source and destination port ranges 
+		 * (for TCP and UDP), and the ICMP codes and types (for ICMP). 
+		 * Permission changes are quickly propagated to instances within the security group. 
+		 * However, depending on the number of instances in the group, a small delay is might occur. 
+		 *
+		 * @param styring $userId
+		 * @param string $groupName
+		 * @param IpPermissionSetType $ipPermissions
+		 * @return bool
+		 */
+		public function RevokeSecurityGroupIngress($userId, $groupName, IpPermissionSetType $ipPermissions)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+			    $stdClass->userId = $userId;
+				$stdClass->groupName = $groupName;
+				$stdClass->ipPermissions = $ipPermissions;
+
+				$response = $this->EC2SoapClient->RevokeSecurityGroupIngress($stdClass);
 				
 				if ($response instanceof SoapFault)
 					throw new Exception($response->faultstring, E_ERROR);
@@ -292,10 +360,20 @@
 		 * @param securityGroupSet $securityGroupSet
 		 * @return Object
 		 */
-		public function DescribeSecurityGroups($securityGroupSet = NULL)
+		public function DescribeSecurityGroups($groupName = false)
 		{
 		    try 
 			{
+				if ($groupName)
+				{
+					$securityGroupSet = new stdClass();
+					$securityGroupSet->securityGroupSet = new stdClass();
+					$securityGroupSet->securityGroupSet->item = new stdClass();
+					$securityGroupSet->securityGroupSet->item->groupName = $groupName;
+				}
+				else
+					$securityGroupSet = null;
+				
 				$response = $this->EC2SoapClient->DescribeSecurityGroups($securityGroupSet);
 				
 				if ($response instanceof SoapFault)
@@ -338,7 +416,12 @@
 			return $response;
 		}
 		
-		// TODO: Discribe productCodes;
+		/**
+		 * The DescribeImageAttribute operation returns information about an attribute of an AMI. Only one attribute can be specified per call. 
+		 *
+		 * @param string $imageId
+		 * @return stdClass
+		 */
 		public function DescribeImageAttribute($imageId)
 		{
 		    try 
@@ -359,7 +442,17 @@
 			return $response;
 		}
 		
-		public function DescribeImages($DescribeImagesType = NULL) 
+		/**
+		 * The DescribeImages operation returns information about AMIs, AKIs, and ARIs available to the user. 
+		 * Information returned includes image type, product codes, architecture, and kernel and RAM disk IDs. 
+		 * Images available to the user include public images available for any user to launch, private images 
+		 * owned by the user making the request, and private images owned by other users for which the user has 
+		 * explicit launch permissions. 
+		 *
+		 * @param DescribeImagesType $DescribeImagesType
+		 * @return stdClass
+		 */
+		public function DescribeImages(DescribeImagesType $DescribeImagesType = NULL) 
 		{
 			try 
 			{
@@ -376,7 +469,13 @@
 	
 			return $response;
 		}
-	
+		
+		/**
+		 * The DescribeInstances operation returns information about instances that you own. 
+		 *
+		 * @param string $instanceId
+		 * @return stdClass
+		 */
 		public function DescribeInstances($instanceId = NULL) 
 		{
 	
@@ -402,7 +501,14 @@
 		}
 	
 	
-	
+		/**
+		 * The DescribeKeyPairs operation returns information about key pairs available to you. 
+		 * If you specify key pairs, information about those key pairs is returned. 
+		 * Otherwise, information for all registered key pairs is returned. 
+		 *
+		 * @param DescribeKeyPairsType $DescribeKeyPairsType
+		 * @return stdClass
+		 */
 		public function DescribeKeyPairs(DescribeKeyPairsType $DescribeKeyPairsType = null) 
 		{
 	
@@ -455,6 +561,15 @@
 			return $response;
 		}
 		
+		/**
+		 * The RebootInstances operation requests a reboot of one or more instances. 
+		 * This operation is asynchronous; it only queues a request to reboot the specified instance(s). 
+		 * The operation will succeed if the instances are valid and belong to the user. 
+		 * Requests to reboot terminated instances are ignored. 
+		 *
+		 * @param array $instances
+		 * @return stdClass
+		 */
    	 	public function RebootInstances($instances) 
 		{
 			try 
@@ -517,6 +632,12 @@
             return $response;
 		}
 	
+		/**
+		 * The DeleteKeyPair operation deletes a key pair. 
+		 *
+		 * @param string $keyName
+		 * @return stdClass
+		 */
 		public function DeleteKeyPair($keyName) 
 		{
             try 
@@ -534,6 +655,14 @@
             return $response;
 		}
 	
+		/**
+		 * The CreateKeyPair operation creates a new 2048 bit RSA key pair and returns a unique ID 
+		 * that can be used to reference this key pair when launching new instances. 
+		 * For more information, see RunInstances. 
+		 *
+		 * @param string $keyName
+		 * @return stdClass
+		 */
 		public function CreateKeyPair($keyName) 
 		{
 		    try 

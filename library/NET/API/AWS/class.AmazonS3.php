@@ -66,7 +66,7 @@
 		
 		private function GetRESTSignature($data)
 		{
-			$data_string = implode("\n", $data);
+			$data_string = implode("\n", $data);			
 			return base64_encode(@hash_hmac(AmazonS3::HASH_ALGO, $data_string, $this->AWSAccessKey, 1));
 		}
 		
@@ -184,12 +184,12 @@
 			$data_to_sign = array("GET", "", "", $timestamp, "/{$bucket_name}/{$object_path}");
 			$signature = $this->GetRESTSignature($data_to_sign);
 			
-			$HttpRequest->setUrl("http://{$bucket_name}.s3.amazonaws.com/{$object_path}");
+			$HttpRequest->setUrl("http://s3.amazonaws.com/{$bucket_name}/{$object_path}");
 		    $HttpRequest->setMethod(constant("HTTP_METH_GET"));
 
 		    $headers["Date"] = $timestamp;
             $headers["Authorization"] = "AWS {$this->AWSAccessKeyId}:{$signature}";
-			                
+            
             $HttpRequest->addHeaders($headers);
 			
 			try 
@@ -198,7 +198,7 @@
                 
                 $info = $HttpRequest->getResponseInfo();                
                 if ($info['response_code'] == 200)
-                {
+                {                	
                 	if ($out_filename)
                 		return (bool)@file_put_contents($out_filename, $HttpRequest->getResponseBody());
                 	else
@@ -206,15 +206,19 @@
                 }
                 else
                 {
-                	$xml = @simplexml_load_string($HttpRequest->getResponseBody());                	
-                	return $xml->Message;
+                	$xml = @simplexml_load_string($HttpRequest->getResponseBody());
+                	throw new Exception((string)$xml->Message);               	
                 }
             }
             catch (HttpException $e)
             {
-                Core::RaiseWarning($e->__toString(), E_ERROR);
-		        return false;
+		        throw new Exception($e->__toString());
             }
+		}
+		
+		public function CreateFolder($folder_path, $bucket_name)
+		{
+			return $this->CreateObject("{$folder_path}_\$folder\$", $bucket_name, null, "plain/text");
 		}
 		
 		/**
@@ -227,13 +231,10 @@
 		 * @param string $object_permissions
 		 * @return bool
 		 */
-		public function CreateObject($object_path, $bucket_name, $filename, $object_content_type, $object_permissions = "public-read")
+		public function CreateObject($object_path, $bucket_name, $filename, $object_content_type, $object_permissions = "private")
 		{
-			if (!file_exists($filename))
-			{
-				Core::RaiseWarning("{$filename} - no such file.");
-				return false;
-			}
+			if ($filename && !file_exists($filename))
+				throw new Exception("{$filename} - no such file.");
 			
 			$HttpRequest = new HttpRequest();
 			
@@ -245,19 +246,23 @@
 			$timestamp = $this->GetTimestamp(true);
 			
 			$data_to_sign = array("PUT", "", $object_content_type, $timestamp, "x-amz-acl:{$object_permissions}","/{$bucket_name}/{$object_path}");
+			
 			$signature = $this->GetRESTSignature($data_to_sign);
 			
-			$HttpRequest->setUrl("http://{$bucket_name}.s3.amazonaws.com/{$object_path}");
+			$HttpRequest->setUrl("http://s3.amazonaws.com/{$bucket_name}/{$object_path}");
 		    $HttpRequest->setMethod(constant("HTTP_METH_PUT"));
 		   	 
-		    $headers["Content-type"] = $object_content_type;
-		    $headers["x-amz-acl"] = $object_permissions;
-		    $headers["Date"] = $timestamp;
-            $headers["Authorization"] = "AWS {$this->AWSAccessKeyId}:{$signature}";
+		    $headers = array(
+		    	"Content-type" => $object_content_type,
+		    	"x-amz-acl"	   => $object_permissions,
+		    	"Date"		   => $timestamp,
+		    	"Authorization"=> "AWS {$this->AWSAccessKeyId}:{$signature}"
+		    );
 			                
             $HttpRequest->addHeaders($headers);
             
-            $HttpRequest->setPutFile($filename);
+            if ($filename)
+            	$HttpRequest->setPutFile($filename);
             
             try 
             {
@@ -270,13 +275,12 @@
                 else
                 {
                 	$xml = @simplexml_load_string($HttpRequest->getResponseBody());                	
-                	return $xml->Message;
+                	throw new Exception((string)$xml->Message);
                 }
             }
             catch (HttpException $e)
             {
-                Core::RaiseWarning($e->__toString(), E_ERROR);
-		        return false;
+		        throw new Exception($e->__toString());
             }
 		}
 		
@@ -304,12 +308,53 @@
 				if (!($res instanceof SoapFault))
                     return true;
                 else 
-                    throw new Exception($res->faultString, E_ERROR);
+                    throw new Exception($res->getMessage(), E_ERROR);
 		    }
 		    catch (SoapFault $e)
 		    {
 		        throw new Exception($e->faultString, E_ERROR);
 		    }
+		}
+		
+		public function GetObjectMetaData($object_path, $bucket_name)
+		{
+			$timestamp = $this->GetTimestamp();
+		    
+		    try 
+		    {
+    		    $res = $this->S3SoapClient->GetObject(
+            		                                      array(  
+            		                                              "Bucket" => $bucket_name,
+            		                                              "Key"	   => $object_path,
+            		                                      		  "GetMetadata" => true,
+            		                                      		  "GetData"		=> false,
+            		                                      		  "InlineData"  => false,
+            		                                              "AWSAccessKeyId" => $this->AWSAccessKeyId,
+            		                                              "Timestamp"      => $timestamp,
+            		                                              "Signature"      => $this->GetSOAPSignature("GetObject", $timestamp)
+            		                                           )
+            		                                     );
+				if (!($res instanceof SoapFault))
+                    return $res->GetObjectResponse;
+                else 
+                    throw new Exception($res->getMessage(), E_ERROR);
+		    }
+		    catch (SoapFault $e)
+		    {
+		        throw new Exception($e->faultString, E_ERROR);
+		    }
+		}
+		
+    	/**
+		 * Delete folder from bucket
+		 *
+		 * @param string $object_path
+		 * @param string $bucket_name
+		 * @return bool
+		 */
+		public function DeleteFolder($object_path, $bucket_name)
+		{
+			return $this->DeleteObject("{$object_path}_\$folder\$", $bucket_name);
 		}
 		
 		/**
@@ -338,7 +383,7 @@
 				if (!($res instanceof SoapFault))
                     return true;
                 else 
-                    throw new Exception($res->faultString, E_ERROR);
+                    throw new Exception($res->getMessage(), E_ERROR);
 		    }
 		    catch (SoapFault $e)
 		    {

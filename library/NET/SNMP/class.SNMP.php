@@ -52,6 +52,30 @@
 		public $Timeout;
 		
 		/**
+		 * Shell instance
+		 *
+		 * @var Shell
+		 */
+		private $Shell;
+		
+		/**
+		 * Path to snmptrap binary
+		 *
+		 * @var string
+		 */
+		private static $SNMPTrapPath;
+		
+		/**
+		 * Set path to SNMPtrap binary
+		 *
+		 * @param string $path
+		 */
+		public static function SetSNMPTrapPath($path)
+		{
+			self::$SNMPTrapPath = $path;
+		}
+		
+		/**
 		 * Define connection target
 		 *
 		 * @param string $host
@@ -80,6 +104,8 @@
 				@snmp_set_valueretrieval(SNMP_VALUE_PLAIN);
 			else 
 				@snmp_set_valueretrieval(SNMP_VALUE_LIBRARY);
+				
+			$this->Shell = ShellFactory::GetShellInstance();
 		}
 		
 		
@@ -113,6 +139,10 @@
 			return $retval;
 		}
 		
+		public function SendTrap($trap)
+		{
+			return $this->Shell->QueryRaw(self::$SNMPTrapPath.' -v 2c -c '.$this->Community.' '.$this->Connection.' "" '.$trap);
+		}
 		
 		/**
 		 * Do snmpwalk

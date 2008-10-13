@@ -48,7 +48,7 @@
 			else 
 				return round($bytes/1024/1024/1024, 2)." GB";
 		}
-		
+				
 		/**
 	     * Fuzzinate a string
 	     *
@@ -178,7 +178,7 @@
 	     * @param  integer|string $time
 	     * @see    TimeString2Stamp()
 	     */
-	    static function Time2HumanReadable($time = 0)
+	    static function Time2HumanReadable($time = 0, $show_secs = true)
 	    {
 	        if (!is_numeric($time)) {
 	            $time = self::TimeString2Stamp($time);
@@ -198,8 +198,10 @@
 	            $days = floor($days);
 	            $hrs  = ($time / 3600) % 24;
 	            $mins = ($time / 60) % 60;
-	            $secs = $time % 60;
-	    
+	            
+	            if ($show_secs)
+	            	$secs = $time % 60;
+	            
 	            $timestring = '';
 	            if ($neg) {
 	                $timestring .= 'negative ';

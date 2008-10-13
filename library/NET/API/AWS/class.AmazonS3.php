@@ -32,6 +32,7 @@
 	    const USER_AGENT = 'Libwebta AWS Client (http://webta.net)';
 	    const HASH_ALGO = 'SHA1';
 	    const SIGN_STRING = 'AmazonS3%s%s';
+	    const CONNECTION_TIMEOUT = 15;
 	    
 		private $S3SoapClient = NULL;
 		private $AWSAccessKeyId = NULL;
@@ -44,7 +45,12 @@
 		 */
 		public function __construct($AWSAccessKeyId, $AWSAccessKey) 
 		{
-			$this->S3SoapClient = new SoapClient(AmazonS3::EC2WSDL, array('trace' => 1, 'exceptions'=> 0, 'user_agent' => AmazonS3::USER_AGENT));
+			$this->S3SoapClient = new SoapClient(AmazonS3::EC2WSDL, array(
+				'trace' => 1, 
+				'exceptions'=> 0, 
+				'user_agent' => AmazonS3::USER_AGENT,
+				'connection_timeout' => self::CONNECTION_TIMEOUT
+			));
 			$this->AWSAccessKeyId = $AWSAccessKeyId;
 			$this->AWSAccessKey = $AWSAccessKey;
 			

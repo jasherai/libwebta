@@ -48,6 +48,11 @@
 		private static $DB = array();
 		
 		/**
+		 * ADODB instances for multiprocess scripts
+		 */
+		private static $DB_THREADS = array();
+		
+		/**
 		 * PDO Instances
 		 * 
 		 * @var array
@@ -376,11 +381,18 @@
 		    	
                 $dsn = ($connection_info && !is_array($connection_info)) ? $connection_info : CF_DB_DSN;
                 
-		    	if (!self::$DB[$conn_type] || self::$DB[$conn_type] == null || $use_nconnect)
+                if (function_exists("posix_getpid"))
+				{
+					$pid = posix_getpid();
+				}
+				else
+					$pid = 0;
+                
+		    	if (!self::$DB[$pid][$conn_type] || self::$DB[$pid][$conn_type] == null || $use_nconnect)
                 {                   
                     if (($dsn && defined("CF_DB_DSN")))
                     {
-                        self::$DB[$conn_type] = &NewADOConnection($dsn);
+                        self::$DB[$pid][$conn_type] = &NewADOConnection($dsn);
                     }
                     else 
                     {                            
@@ -389,31 +401,29 @@
                         
                         try
                         {                                
-                    	    self::$DB[$conn_type] = &NewADOConnection($driver);
+                    	    self::$DB[$pid][$conn_type] = &NewADOConnection($driver);
                     	    
-                    	    if ($use_nconnect)
-                                self::$DB[$conn_type]->NConnect($host, $user, $pass, $name);
+                    	    if ($use_nconnect || $pid != 0)
+                                self::$DB[$pid][$conn_type]->NConnect($host, $user, $pass, $name);
                             else 
-                                self::$DB[$conn_type]->Connect($host, $user, $pass, $name);
-                                
-
+                                self::$DB[$pid][$conn_type]->Connect($host, $user, $pass, $name);
                         }
                         catch (ADODB_Exception $e)
                         {
 							Core::RaiseError("Cannot connect to database: {$e->getMessage()}", E_ERROR);
                         }
                                                   	
-                    	if (!self::$DB[$conn_type] || !self::$DB[$conn_type]->IsConnected()) 
+                    	if (!self::$DB[$pid][$conn_type] || !self::$DB[$pid][$conn_type]->IsConnected()) 
                     	    Core::RaiseError("Cannot connect to database", E_ERROR);
                         
-                    	self::$DB[$conn_type]->debug = defined("CF_DEBUG_DB") ? CF_DEBUG_DB : false;
+                    	self::$DB[$pid][$conn_type]->debug = defined("CF_DEBUG_DB") ? CF_DEBUG_DB : false;
                     	
-                    	self::$DB[$conn_type]->cacheSecs = defined("CF_DB_CACHE") ? CF_DB_CACHE : 0;
-                    	self::$DB[$conn_type]->SetFetchMode(ADODB_FETCH_ASSOC);   
+                    	self::$DB[$pid][$conn_type]->cacheSecs = defined("CF_DB_CACHE") ? CF_DB_CACHE : 0;
+                    	self::$DB[$pid][$conn_type]->SetFetchMode(ADODB_FETCH_ASSOC);   
                     }
                 }         	
                 
-    			return self::$DB[$conn_type];
+    			return self::$DB[$pid][$conn_type];
 		    }
 		    else 
                 Core::RaiseError(_("ADODB not loaded."));	

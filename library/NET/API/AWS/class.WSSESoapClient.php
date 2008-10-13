@@ -72,8 +72,6 @@
 			/* add Timestamp with no expiration timestamp */
 		 	$objWSSE->addTimestamp();
 		
-			
-		
 			try
 			{
                 /* Sign the message - also signs appropraite WS-Security items */
@@ -87,15 +85,30 @@
 			/* Add certificate (BinarySecurityToken) to the message and attach pointer to Signature */
 			$token = $objWSSE->addBinaryToken($this->BinaryToken);
 			$objWSSE->attachTokentoSig($token);
+
+			for ($retry = 1; $retry <= 3; $retry++)
+			{
+				try
+				{					
+					$retval = parent::__doRequest($objWSSE->saveXML(), $location, $saction, $version);
+					if ($retval)
+						return $retval;
 					
-			try
-			{
-				return parent::__doRequest($objWSSE->saveXML(), $location, $saction, $version);
+					$headers = $this->__getLastResponseHeaders();
+					if ($headers && stristr($headers, "HTTP/1.1 200 OK"))
+						return $retval;
+				}
+				catch (Exception $e)
+				{				
+					$exept = $e;
+				}
+				
+				// Sleep for 2 seconds
+				sleep(2);
 			}
-			catch (Exception $e)
-			{
-				throw new Exception("[".__METHOD__."] ".$e->__toString(), E_ERROR);
-			}
+			
+			if ($exept)
+				throw new $exept;
 		}
 	}
 ?>

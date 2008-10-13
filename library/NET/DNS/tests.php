@@ -82,7 +82,7 @@
         }
         */
     	
-        function testDNSZoneParser()
+        function _testDNSZoneParser()
         {
         	Core::Load("NET/DNS/DNSZoneParser");
         	$base = dirname(__FILE__);

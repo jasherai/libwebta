@@ -274,7 +274,7 @@
 			preg_match_all("/[$]+INCLUDE\s+([^\n]+)\n/i", $content, $m);
 			for($i = 1; $i <= count($m); $i++)
 			{
-				//TODO:
+				//TODO: Support for INCLUDE directive
 			}
 		}
 		

@@ -48,6 +48,20 @@
 	    public $launchPermission;
 	};
 	
+	class DescribeAddressesType
+	{
+		public $publicIpsSet;
+		
+		public function AddKey($ip_address)
+		{
+			$item = new stdClass();
+			$item->item = new stdClass();
+			$item->item->publicIp = $ip_address;
+			
+			$this->keySet[] = $publicIpsSet;
+		}
+	}
+	
 	class DescribeKeyPairsType
 	{
 		public $keySet;
@@ -59,6 +73,50 @@
 			$item->item->keyName = $key_name;
 			
 			$this->keySet[] = $item;
+		}
+	}
+	
+	class AttachVolumeType
+	{
+		public $volumeId;
+		public $instanceId;
+		public $device;
+		
+		public function __construct($volumeId = null, $instanceId = null, $device = null)
+		{
+			$this->device = $device;
+			$this->instanceId = $instanceId;
+			$this->volumeId = $volumeId;
+		}
+	}
+	
+	class DetachVolumeType
+	{
+		public $volumeId;
+		public $instanceId;
+		public $device;
+		public $force;
+		
+		public function __construct($volumeId = null, $instanceId = null, $device = null, $force = false)
+		{
+			$this->device = $device;
+			$this->instanceId = $instanceId;
+			$this->volumeId = $volumeId;
+			$this->force = $force;
+		}
+	}
+	
+	class CreateVolumeType
+	{
+		public $size;
+		public $snapshotId;
+		public $availabilityZone;
+		
+		public function __construct($size = null, $snapshotId = null, $availabilityZone = null)
+		{
+			$this->size = $size;
+			$this->snapshotId = $snapshotId;
+			$this->availabilityZone = $availabilityZone;
 		}
 	}
 	
@@ -138,7 +196,7 @@
 	
 	class AmazonEC2 
     {
-	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2008-02-01.ec2.wsdl';
+	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2008-05-05.ec2.wsdl';
 	    const KEY_PATH = '/etc/awskey.pem';
 	    const CERT_PATH = '/etc/awscert.pem';
 	    const USER_AGENT = 'Libwebta AWS Client (http://webta.net)';
@@ -160,8 +218,8 @@
 			
 	      	$this->EC2SoapClient  = new WSSESoapClient(AmazonEC2::EC2WSDL, array(
 	      		'connection_timeout' => self::CONNECTION_TIMEOUT, 
-	      		'trace' => 1, 
-	      		'exceptions'=> 0, 
+	      		'trace' => true, 
+	      		'exceptions'=> false, 
 	      		'user_agent' => AmazonEC2::USER_AGENT)
 	      	);
 	      		      	
@@ -172,6 +230,360 @@
 			Seems like will be fixed in PHP 5.2 Release*/
 			$this->EC2SoapClient->location = 'https://ec2.amazonaws.com/';
 		}		
+		
+		/*
+		 * 
+		 * 
+		 * Elastic Block Storage (EBS)
+		 * 
+		 * 
+		 */
+		
+		/**
+		 * The CreateVolume operation creates a new Amazon EBS volume to which any 
+		 * Amazon EC2 instance can attach within the same availability zone. 
+		 *
+		 * @param CreateVolumeType $CreateVolumeType
+		 * @return stdClass
+		 */
+		public function CreateVolume(CreateVolumeType $CreateVolumeType)
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->CreateVolume($CreateVolumeType);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The DeleteVolume operation deletes an Amazon EBS volume.
+		 *
+		 * @param string $volumeId
+		 * @return stdClass
+		 */
+    	public function DeleteVolume($volumeId)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->volumeId = $volumeId;
+				
+				$response = $this->EC2SoapClient->DeleteVolume($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The DescribeVolumes operation lists the specified Amazon EBS volumes that you own. 
+		 * If you do not specify one or more volume IDs, Amazon EBS lists all volumes that you own.
+		 *
+		 * @param array $volumeId
+		 * @return stdClass
+		 */
+    	public function DescribeVolumes(array $volumeId = null)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->volumeSet = $volumeId;
+				
+				$response = $this->EC2SoapClient->DescribeVolumes($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+			
+			return $response;
+		}
+		
+		/**
+		 * The AttachVolume operation attaches an Amazon EBS volume to an instance.
+		 *
+		 * @param AttachVolumeType $AttachVolumeType
+		 * @return stdClass
+		 */
+    	public function AttachVolume(AttachVolumeType $AttachVolumeType)
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->AttachVolume($AttachVolumeType);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The DetachVolume operation detaches an Amazon EBS volume from an instance.
+		 *
+		 * @param DetachVolumeType $DetachVolumeType
+		 * @return stdClass
+		 */
+    	public function DetachVolume(DetachVolumeType $DetachVolumeType)
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->DetachVolume($DetachVolumeType);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The CreateSnapshot operation creates a snapshot of an Amazon EBS volume and stores it 
+		 * in Amazon S3. You can use snapshots for backups, to make identical copies of instance 
+		 * devices, and to save data before shutting down an instance.
+		 *
+		 * @param string $volumeId
+		 * @return stdClass
+		 */
+    	public function CreateSnapshot($volumeId)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->volumeId = $volumeId;
+				
+				$response = $this->EC2SoapClient->CreateSnapshot($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The DeleteSnapshot operation deletes a snapshot of an Amazon EBS volume that is stored in Amazon S3.
+		 *
+		 * @param string $snapshotId
+		 * @return stdClass
+		 */
+    	public function DeleteSnapshot($snapshotId)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->snapshotId = $snapshotId;
+				
+				$response = $this->EC2SoapClient->DeleteSnapshot($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The DescribeSnapshots operation describes the status of Amazon EBS snapshots. 
+		 *
+		 * @param string $snapshotId
+		 * @return stdClass
+		 */
+    	public function DescribeSnapshots(array $snapshotId = null)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->snapshotSet = $snapshotId;
+				
+				$response = $this->EC2SoapClient->DescribeSnapshots($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/*
+		 * 
+		 * 
+		 * Elastic IP Addresses
+		 * 
+		 * 
+		 */
+		
+		/**
+		 * The AllocateAddress operation acquires an elastic IP address for use with your account.
+		 *
+		 * @return stdClass
+		 */
+		public function AllocateAddress()
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->AllocateAddress();
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The DescribeAddresses operation lists elastic IP addresses assigned to your account.
+		 *
+		 * @param DescribeAddressesType $DescribeAddressesType
+		 * @return stdClass
+		 */
+    	public function DescribeAddresses(DescribeAddressesType $DescribeAddressesType = null)
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->DescribeAddresses($DescribeAddressesType);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The ReleaseAddress operation releases an elastic IP address associated with your account.
+		 * 
+		 * If you run this operation on an elastic IP address that is already released, the address 
+		 * might be assigned to another account which will cause Amazon EC2 to return an error.
+		 *
+		 * @param string $ip_address
+		 * @return stdClass
+		 */
+    	public function ReleaseAddress($ip_address)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->publicIp = $ip_address;
+				
+				$response = $this->EC2SoapClient->ReleaseAddress($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The AssociateAddress operation associates an elastic IP address with an instance. 
+		 * If the IP address is currently assigned to another instance, the IP address is assigned to 
+		 * the new instance. This is an idempotent operation. If you enter it more than once, 
+		 * Amazon EC2 does not return an error.
+		 *
+		 * @param string $instance_id
+		 * @param string $public_ip
+		 * @return stdClass
+		 */
+   	 	public function AssociateAddress($instance_id, $public_ip)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->publicIp = $public_ip;
+				$stdClass->instanceId = $instance_id;
+				
+				$response = $this->EC2SoapClient->AssociateAddress($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The DisassociateAddress operation disassociates the specified elastic IP address from 
+		 * the instance to which it is assigned. This is an idempotent operation. 
+		 * If you enter it more than once, Amazon EC2 does not return an error.
+		 *
+		 * @param string $public_ip
+		 * @return stdClass
+		 */
+    	public function DisassociateAddress($public_ip)
+		{
+			try 
+			{
+				$stdClass = new stdClass();
+				$stdClass->publicIp = $ip_address;
+				
+				$response = $this->EC2SoapClient->DisassociateAddress($stdClass);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		
 		
 		/**
 		 * The GetConsoleOutput operation retrieves console output for the specified instance. 
@@ -494,7 +906,7 @@
 			} 
 			catch (SoapFault $e) 
 			{
-			    throw new Exception($e->getMessage(), E_ERROR);
+				throw new Exception($e->getMessage(), E_ERROR);
 			}
 	
 			return $response;

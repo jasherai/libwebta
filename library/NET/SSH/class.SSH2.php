@@ -258,7 +258,40 @@
 				
 			return true;
 		}
-				
+
+		/**
+		 * Return SSH2 shell stream
+		 *
+		 * @return stream
+		 */
+		public function GetShell()
+		{
+			try 
+			{
+			    if ($this->Connection)
+				{
+				    $stream = @ssh2_shell($this->Connection, 
+					                    null, 
+					                    null, 
+					                    $this->TermWidth, 
+					                    $this->TermHeight, 
+					                    $this->TermUnits
+					                   );
+					                   
+					if ($stream)
+						return $stream;
+					else
+						return false;
+				}
+				else
+					return false;
+			} 
+			catch (Exception $e) 
+			{
+				return false;
+			}
+		}
+		
 		/**
 		* Execute a command and returns both stdout and stderr output
 		* @access public
@@ -350,7 +383,7 @@
 							 
 							if (fwrite($stream, $content) === FALSE) 
 							{
-								Core::RaiseError(sprintf(_("SFTP: Cannot write to file '%s'"), $remote_path));
+								throw new Exception(sprintf(_("SFTP: Cannot write to file '%s'"), $remote_path));
 								return false;
 							}
 							@fclose($stream);
@@ -410,11 +443,8 @@
 							}
 							
 							$info = serialize(stream_get_meta_data($stream));
-							//$this->Logger->info("SFTP Stream metadata: {$info}");
 							
 							@fclose($stream);
-							
-							//$this->Logger->info("SFTP read return: {$retval}");
 							
 							return $retval;
 						}

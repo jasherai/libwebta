@@ -62,16 +62,27 @@
 				$this->BinaryToken = $cert;
 		}
 		
-		function __doRequest($request, $location, $saction, $version) 
-		{		    
-		    $doc = new DOMDocument('1.0');
-			$doc->loadXML($request);
+		function __call($function_name, $arguments)
+		{
+			$result = parent::__call($function_name, $arguments);
 			
+			if ($result instanceof SoapFault)
+				$result->faultstring = sprintf(_("AWS error: %s"), $result->faultstring);
+			
+			return $result;
+		}
+		
+		
+		function __doRequest($request, $location, $saction, $version) 
+		{		    			
+			$doc = new DOMDocument('1.0');
+			$doc->loadXML($request);
+						
 			$objWSSE = new WSSESoap($doc);
 			#echo "<pre>"; var_dump($request); #die();
 			/* add Timestamp with no expiration timestamp */
 		 	$objWSSE->addTimestamp();
-		
+		 	
 			try
 			{
                 /* Sign the message - also signs appropraite WS-Security items */
@@ -91,6 +102,7 @@
 				try
 				{					
 					$retval = parent::__doRequest($objWSSE->saveXML(), $location, $saction, $version);
+
 					if ($retval)
 						return $retval;
 					

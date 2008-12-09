@@ -52,13 +52,13 @@
 	{
 		public $publicIpsSet;
 		
-		public function AddKey($ip_address)
+		public function AddAddress($ip_address)
 		{
 			$item = new stdClass();
 			$item->item = new stdClass();
 			$item->item->publicIp = $ip_address;
 			
-			$this->keySet[] = $publicIpsSet;
+			$this->publicIpsSet = $item;
 		}
 	}
 	
@@ -168,17 +168,26 @@
 	{
 	    public $item = array();
 	    
-	    public function AddItem($ipProtocol, $fromPort, $toPort, $groups, $ipRanges)
+	    public function AddItem($ipProtocol, $fromPort, $toPort, $groups = array(), $ipRanges)
 	    {
 	        $stdClass = new stdClass();
 	        $stdClass->ipProtocol = $ipProtocol;
 	        $stdClass->fromPort = $fromPort;
 	        $stdClass->toPort = $toPort;
-	        $stdClass->groups = "";
+	        $stdClass->groups = new stdClass();
+	        
+	        if (count($groups) > 0)
+	        	$stdClass->groups->item = $groups;
+	        	
 	        $stdClass->ipRanges = new stdClass();
-	        $stdClass->ipRanges->item = array();
-	        foreach ($ipRanges as $ipRange)
-	           array_push($stdClass->ipRanges->item, array("cidrIp" => $ipRange));
+	        	        
+	        if ($ipRanges && count($ipRanges) > 0)
+	        {
+	        	$stdClass->ipRanges->item = array();
+	        	
+	        	foreach ($ipRanges as $ipRange)
+	           		array_push($stdClass->ipRanges->item, array("cidrIp" => $ipRange));
+	        }
 	           
 	        array_push($this->item, $stdClass);
 	    }
@@ -301,7 +310,10 @@
 			try 
 			{
 				$stdClass = new stdClass();
-				$stdClass->volumeSet = $volumeId;
+				if ($volumeId)
+					$stdClass->volumeSet->item->volumeId = $volumeId;
+				else
+					$stdClass->volumeSet = null;
 				
 				$response = $this->EC2SoapClient->DescribeVolumes($stdClass);
 				
@@ -897,15 +909,14 @@
 				{
 				    $objInstances->instancesSet = array('item' => array('instanceId' => $instanceId) ); 
 				};
-				
+								
 				$response = $this->EC2SoapClient->DescribeInstances($objInstances);
 				
 				if ($response instanceof SoapFault)
-					throw new Exception($response->faultstring, E_ERROR);
-				
+					throw new Exception($response->faultstring, E_ERROR);				
 			} 
 			catch (SoapFault $e) 
-			{
+			{				
 				throw new Exception($e->getMessage(), E_ERROR);
 			}
 	

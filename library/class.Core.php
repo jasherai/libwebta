@@ -173,7 +173,7 @@
 					
 			if (is_file($fullpath))
 			{
-				require_once($fullpath);
+				include_once($fullpath);
 			}
 			else
 			{
@@ -184,7 +184,7 @@
 	
 				if (is_file($classpath))
 				{
-					require_once($classpath);
+					include_once($classpath);
 				}
 				
 				// Directory specified. Loading all classes inside
@@ -195,7 +195,7 @@
 					{
 						$basename = basename($file);
 						if (substr($basename,0, 6) == "class." && substr($basename,-4) == ".php")
-							require_once("{$fullpath}/{$file}");
+							include_once("{$fullpath}/{$file}");
 					}
 				}
 				else

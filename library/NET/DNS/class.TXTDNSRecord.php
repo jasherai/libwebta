@@ -53,10 +53,13 @@
 			$this->Type = "TXT";
 			
 			// Name
-			if (($this->Validator->MatchesPattern($name, self::PAT_NON_FDQN) || 
-				$name == "@" || 
-				$name === "" || 
-				$this->Validator->IsDomain($name)) && !$this->Validator->IsIPAddress(rtrim($name, "."))
+			
+			$vname = str_replace("_", "", $name);
+			
+			if (($this->Validator->MatchesPattern($vname, self::PAT_NON_FDQN) || 
+				$vname == "@" || 
+				$vname === "" || 
+				$this->Validator->IsDomain($vname)) && !$this->Validator->IsIPAddress(rtrim($vname, "."))
 			   )
 				$this->Name = $name;
 			else 

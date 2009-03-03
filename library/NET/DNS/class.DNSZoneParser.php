@@ -29,6 +29,7 @@
 	Core::Load("NET/DNS/MXDNSRecord");
 	Core::Load("NET/DNS/TXTDNSRecord");
 	Core::Load("NET/DNS/SPFDNSRecord");
+	Core::Load("NET/DNS/SRVDNSRecord");
 	
 	/**
      * @name       DNSZoneParser
@@ -120,6 +121,7 @@
 			$this->DNSZone = new DNSZone();
 			
 			$content = $this->StripComments($content);
+			
 			$this->ParseDirectives($content);
 			$this->ParseSOA($content);
 			$this->ParseRecords($content);
@@ -189,14 +191,13 @@
 		 */
 		protected function ParseRecords($content)
 		{
-			preg_match_all("/[\n]*(.*?)\s+(". self::PAT_TIME ."\s+){0,}IN\s+(". self::REC_TYPES .")\s+(.*?)\n/mi", $content, $m);
-			
+			preg_match_all("/[\n]*(.*?)\s+(". self::PAT_TIME ."\s+){0,}IN\s+(". self::REC_TYPES .")\s+(.*?)(\n|$)/mi", $content, $m);
 			for($i=0; $i <= count($m[0]); $i++)
 			{				
-				$name = $m[1][$i];
-				$ttl = $m[2][$i];
-				$type = strtoupper($m[3][$i]);
-				$data = $m[4][$i];
+				$name = trim($m[1][$i]);
+				$ttl = trim($m[2][$i]);
+				$type = trim(strtoupper($m[3][$i]));
+				$data = trim($m[4][$i]);
 
 				switch ($type)
 				{
@@ -208,29 +209,43 @@
 						break;
 						
 					case "A":
-						$record = new ADNSRecord($name, trim($data), $ttl);
+						$record = new ADNSRecord($name, $data, $ttl);
 						$this->DNSZone->AddRecord($record);
 						break;	
 					
 					case "NS":
-						$record = new NSDNSRecord($name, trim($data), $ttl);
+						$record = new NSDNSRecord($name, $data, $ttl);
 						$this->DNSZone->AddRecord($record);
 						break;
 					
 					case "CNAME":
-						$record = new CNAMEDNSRecord($name, trim($data), $ttl);
+						$record = new CNAMEDNSRecord($name, $data, $ttl);
 						$this->DNSZone->AddRecord($record);
 						break;
 						
 					case "PTR":
-						$record = new PTRDNSRecord($name, trim($data), $ttl);
+						$record = new PTRDNSRecord($name, $data, $ttl);
 						$this->DNSZone->AddRecord($record);
 						break;
 						
 				    case "TXT":
-						$record = new TXTDNSRecord($name, trim($data), $ttl);
+						$record = new TXTDNSRecord($name, $data, $ttl);
 						$this->DNSZone->AddRecord($record);
 						break;
+						
+				    case "SRV":
+				    					    	
+				    	$data_chunks = preg_split("/\s+/", $data);
+				    	
+				    	$priority = $data_chunks[0];
+				    	$weight = $data_chunks[1];
+				    	$port = $data_chunks[2];
+				    	$target = $data_chunks[3];
+				    	
+				    	$record = new SRVDNSRecord($name, $target, $ttl, $priority, $weight, $port, "IN");
+				    	$this->DNSZone->AddRecord($record);
+
+				    	break;
 				}
 			}
 		}
@@ -244,7 +259,7 @@
 		 */
 		protected function StripComments($content)
 		{
-			return preg_replace("/[;#].*?\n/i", "\n", $content);
+			return preg_replace("/[\n]{2,}/", "\n", preg_replace("/[;#].*?\n/i", "\n", $content));
 		}
 		
 		

@@ -72,7 +72,7 @@
 		
 		private function GetRESTSignature($data)
 		{
-			$data_string = implode("\n", $data);			
+			$data_string = implode("\n", $data);
 			return base64_encode(@hash_hmac(AmazonS3::HASH_ALGO, $data_string, $this->AWSAccessKey, 1));
 		}
 		
@@ -137,6 +137,50 @@
 		        throw new Exception($e->faultString, E_ERROR);
 		    }
 		}
+		
+		public function CopyObject($source_object, $source_bucket, $dest_object, $dest_bucket)
+		{
+			$timestamp = $this->GetTimestamp();
+		    
+		    try 
+		    {
+    		    $params = array(  
+					"SourceBucket" => $source_bucket,
+					"SourceKey" => $source_object,
+					"DestinationBucket" => $dest_bucket,
+					"DestinationKey" => $dest_object,
+					"AWSAccessKeyId" => $this->AWSAccessKeyId,
+					"Timestamp"      => $timestamp,
+					"Signature"      => $this->GetSOAPSignature("CopyObject", $timestamp)
+				);
+				
+		    	$res = $this->S3SoapClient->CopyObject($params);
+		    	
+		    	if ($res->detail->Endpoint)
+		    	{
+		    		$loc = $this->S3SoapClient->location;
+		    		$this->S3SoapClient->location = "https://{$res->detail->Endpoint}/soap";
+		    		
+		    		$res = $this->S3SoapClient->CopyObject($params);
+		    		
+		    		$this->S3SoapClient->location  = $loc;
+		    	}
+		    	
+                if (!($res instanceof SoapFault))
+                {
+                    return true;
+                }
+                else 
+                {
+                	throw new Exception($res->faultString ? $res->faultString : $res->getMessage(), E_ERROR);
+                }
+		    }
+		    catch (SoapFault $e)
+		    {
+		        throw new Exception($e->faultString, E_ERROR);
+		    }	
+		}
+		
 		
 		/**
 		 * The ListBuckets operation returns a list of all buckets owned by the sender of the request.
@@ -237,7 +281,7 @@
 		 * @param string $object_permissions
 		 * @return bool
 		 */
-		public function CreateObject($object_path, $bucket_name, $filename, $object_content_type, $object_permissions = "private")
+		public function CreateObject($object_path, $bucket_name, $contents, $object_content_type, $object_permissions = "private", $is_contents_in_file = true)
 		{
 			if ($filename && !file_exists($filename))
 				throw new Exception("{$filename} - no such file.");
@@ -255,7 +299,7 @@
 			
 			$signature = $this->GetRESTSignature($data_to_sign);
 			
-			$HttpRequest->setUrl("http://s3.amazonaws.com/{$bucket_name}/{$object_path}");
+			$HttpRequest->setUrl("http://{$bucket_name}.s3.amazonaws.com/{$object_path}");
 		    $HttpRequest->setMethod(constant("HTTP_METH_PUT"));
 		   	 
 		    $headers = array(
@@ -267,8 +311,10 @@
 			                
             $HttpRequest->addHeaders($headers);
             
-            if ($filename)
-            	$HttpRequest->setPutFile($filename);
+            if ($is_contents_in_file)
+            	$HttpRequest->setPutFile($contents);
+            else
+            	$HttpRequest->setPutData($contents);
             
             try 
             {
@@ -403,29 +449,64 @@
 		 * @param string $bucket_name
 		 * @return string 
 		 */
-		public function CreateBucket($bucket_name)
+		public function CreateBucket($bucket_name, $put_to_europe = false)
 		{
-		    $timestamp = $this->GetTimestamp();
-		    
-		    try 
-		    {
-    		    $res = $this->S3SoapClient->CreateBucket(
-            		                                      array(  
-            		                                              "Bucket" => $bucket_name,
-            		                                              "AWSAccessKeyId" => $this->AWSAccessKeyId,
-            		                                              "Timestamp"      => $timestamp,
-            		                                              "Signature"      => $this->GetSOAPSignature("CreateBucket", $timestamp)
-            		                                           )
-            		                                     );             
-                if (!($res instanceof SoapFault))
-                    return true;
-                else 
-                    throw new Exception($res->getMessage(), E_ERROR);
-		    }
-		    catch (SoapFault $e)
-		    {
-		        throw new Exception($e->faultString, E_ERROR);
-		    }
+			$HttpRequest = new HttpRequest();
+			
+			$HttpRequest->setOptions(array(    "redirect" => 10, 
+			                                         "useragent" => "LibWebta AWS Client (http://webta.net)"
+			                                    )
+			                              );
+						
+			$timestamp = $this->GetTimestamp(true);
+			
+			
+			if ($put_to_europe)
+				$request = "<CreateBucketConfiguration><LocationConstraint>EU</LocationConstraint></CreateBucketConfiguration>";
+			else
+				$request = "";
+			
+			$data_to_sign = array("PUT", "", "", $timestamp, "/{$bucket_name}/");
+			
+			$signature = $this->GetRESTSignature($data_to_sign);
+			
+			$HttpRequest->setUrl("https://{$bucket_name}.s3.amazonaws.com/");
+		    $HttpRequest->setMethod(constant("HTTP_METH_PUT"));
+		   	 
+		    $headers = array(
+		    	"Content-length" => strlen($request),
+		    	"Date"		   	 => $timestamp,
+		    	"Authorization"	 => "AWS {$this->AWSAccessKeyId}:{$signature}"
+		    );
+			                
+            $HttpRequest->addHeaders($headers);
+            
+            if ($request != '')
+            	$HttpRequest->setPutData($request);
+            
+            try 
+            {
+               	$HttpRequest->send();
+            	
+            	$info = $HttpRequest->getResponseInfo();
+
+                if ($info['response_code'] == 200)
+                	return true;
+                else
+                {
+                	if ($HttpRequest->getResponseBody())
+                	{
+                		$xml = @simplexml_load_string($HttpRequest->getResponseBody());                	
+                		throw new Exception((string)$xml->Message);
+                	}
+                	else
+                		throw new Exception(_("Cannot create S3 bucket at this time. Please try again later."));
+                }
+            }
+            catch (HttpException $e)
+            {            	
+            	throw new Exception($e->__toString());
+            }
 		}
     }
 ?>

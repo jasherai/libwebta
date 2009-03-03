@@ -34,6 +34,8 @@
         
         private $Logger;
         
+        private $PIDDir;
+        
         function __construct($process_classes_folder)
         {
             $processes = @glob("{$process_classes_folder}/class.*Process.php");
@@ -81,6 +83,7 @@
                 $options[$job["name"]] = $job["description"];
 
             $options["help"] = "Print this help";
+            $options["piddir=s"] = "PID directory";
                            
             $Getopt = new Getopt($options);
             $opts = $Getopt->getOptions();
@@ -93,6 +96,15 @@
             else
             {                               
                 $this->ProcessName = $opts[0];
+                if (in_array("piddir", $opts))
+                {
+                	$piddir = trim($Getopt->getOption("piddir"));
+                	
+                	if (substr($piddir, 0, 1) != '/')
+                		$this->PIDDir = realpath($process_classes_folder . "/" . $piddir);
+                	else
+                		$this->PIDDir = $piddir;
+                }
             }
         }
         
@@ -112,6 +124,8 @@
             $sig_handler = new ReflectionClass("SignalHandler");
             $PR = new ProcessManager($sig_handler->newInstance());
             $PR->SetMaxChilds($max_chinds);
+            if ($this->PIDDir)
+            	$PR->SetPIDDir($this->PIDDir);
             $PR->Run($proccess->newInstance());
         }
     }

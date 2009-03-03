@@ -98,6 +98,13 @@
     				if ($vv == $pid)
     				{
     					unset($this->ProcessManager->PIDs[$kk]);
+    					
+    					if ($this->ProcessManager->PIDDir)
+    					{
+    						$this->Logger->debug("Delete thread PID file $pid");
+    						@unlink($this->ProcessManager->PIDDir . "/" . $pid);
+    					}
+    						
     					$known_child = true;
     					break;
     				}

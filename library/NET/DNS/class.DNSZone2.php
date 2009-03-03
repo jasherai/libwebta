@@ -94,7 +94,7 @@
 		function __construct()
 		{
 			$this->TTL = false;
-			$this->RecordsSortMap = array("SOA", "NS", "PTR", "A", "CNAME", "MX", "TXT");
+			$this->RecordsSortMap = array("SOA", "NS", "PTR", "A", "CNAME", "MX", "TXT", "SRV");
 			$this->Template = self::DEFAULT_TEMPLATE;
 		}
 		

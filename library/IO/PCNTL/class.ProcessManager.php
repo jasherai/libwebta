@@ -60,6 +60,8 @@
          */
         public $MaxChilds;
         
+        public $PIDDir;
+        
         private $Logger;
         
         /**
@@ -111,6 +113,11 @@
                 self::RaiseError("You can only set MaxChilds *before* you Run() is executed.");
         }
         
+        public function SetPIDDir ($path)
+        {
+        	$this->PIDDir = $path;
+        } 
+        
         /**
          * Start Forking
          *
@@ -125,80 +132,109 @@
                
             // Set class property   
             $this->ProcessObject = $ProcessObject;
+            $pid = posix_getpid();
+            
+        	if ($this->PIDDir)
+            {
+            	$this->Logger->debug("Touch process PID file {$pid}");
+            	@touch("{$this->PIDDir}/{$pid}");
+            }
             
             $this->Logger->debug("Executing 'OnStartForking' routine");
-                
-            // Run routines before threading
+                            	
+            // Run routines before threading            	
             $this->ProcessObject->OnStartForking();  
             
             $this->Logger->debug("'OnStartForking' successfully executed.");
             
-            if (count($this->ProcessObject->ThreadArgs) == 0)
+            if (count($this->ProcessObject->ThreadArgs) != 0)
             {
-                $this->Logger->debug("ProcessObject::ThreadArgs is empty. Nothing to do.");
-                return true;
+            
+	            // Add handlers to signals
+	            $this->SignalHandler->SetSignalHandlers();
+	            
+	            $this->Logger->debug("Executing ProcessObject::ForkThreads()");
+	            
+	            // Start Threading
+	            $this->ForkThreads();
+	            
+	            // Wait while threads working 
+	            $iteration = 1;          
+	            while (true)
+	        	{
+	        		if (count($this->PIDs) == 0)
+	        			break;
+	
+	        		sleep(2);
+	        	    
+	        	    if ($iteration++ == 10)
+	        	    {
+	        	        $this->Logger->debug("Goin to MPWL. PIDs(".implode(", ", $this->PIDs).")");
+	        	        
+	        	        //
+	        	        // Zomby not needed.
+	        	        //
+	        	        
+	        	        $pid = pcntl_wait($status, WNOHANG | WUNTRACED);
+	        	        if ($pid > 0)
+			    		{
+			    		    $this->Logger->debug("MPWL: pcntl_wait() from child with PID# {$pid} (Exit code: {$status})");
+			  
+			    		    foreach((array)$this->PIDs as $kk=>$vv)
+			    			{
+			    				if ($vv == $pid)
+			    				{
+			    					if ($this->PIDDir)
+			    					{
+			    						$this->Logger->debug("Delete thread PID file $pid");
+			    						@unlink($this->PIDDir . "/" . $pid);
+			    					}
+			    					unset($this->PIDs[$kk]);
+			    				}
+			    			}
+			    			
+			    			$this->ForkThreads();
+			    		}
+	        	        
+	        	        foreach ($this->PIDs as $k=>$pid)
+	        	        {
+	        	           $res = posix_kill($pid, 0);
+	        	           $this->Logger->debug("MPWL: Sending 0 signal to {$pid} = ".intval($res));
+	        	           
+	        	           if ($res === FALSE)
+	        	           {
+	        	               $this->Logger->debug("MPWL: Deleting '{$pid}' from PIDs query");
+	        	               
+		                   		if ($this->PIDDir)
+		    					{
+		    						$this->Logger->debug("Delete thread PID file {$this->PIDs[$k]}");
+		    						@unlink($this->PIDDir . "/" . $this->PIDs[$k]);
+		    					}
+	        	               	unset($this->PIDs[$k]);
+	        	           }
+	        	        }
+	
+	        	        $iteration = 1;
+	        	    }
+	        	    
+	        	}
+            }
+            else
+            {
+            	$this->Logger->debug("ProcessObject::ThreadArgs is empty. Nothing to do.");
             }
             
-            // Add handlers to signals
-            $this->SignalHandler->SetSignalHandlers();
-            
-            $this->Logger->debug("Executing ProcessObject::ForkThreads()");
-            
-            // Start Threading
-            $this->ForkThreads();
-            
-            // Wait while threads working 
-            $iteration = 1;          
-            while (true)
-        	{
-        		if (count($this->PIDs) == 0)
-        			break;
-
-        		sleep(2);
-        	    
-        	    if ($iteration++ == 10)
-        	    {
-        	        $this->Logger->debug("Goin to MPWL. PIDs(".implode(", ", $this->PIDs).")");
-        	        
-        	        //
-        	        // Zomby not needed.
-        	        //
-        	        
-        	        $pid = pcntl_wait($status, WNOHANG | WUNTRACED);
-        	        if ($pid > 0)
-		    		{
-		    		    $this->Logger->debug("MPWL: pcntl_wait() from child with PID# {$pid} (Exit code: {$status})");
-		  
-		    		    foreach((array)$this->PIDs as $kk=>$vv)
-		    			{
-		    				if ($vv == $pid)
-		    					unset($this->PIDs[$kk]);
-		    			}
-		    			
-		    			$this->ForkThreads();
-		    		}
-        	        
-        	        foreach ($this->PIDs as $k=>$pid)
-        	        {
-        	           $res = posix_kill($pid, 0);
-        	           $this->Logger->debug("MPWL: Sending 0 signal to {$pid} = ".intval($res));
-        	           
-        	           if ($res === FALSE)
-        	           {
-        	               $this->Logger->debug("MPWL: Deleting '{$pid}' from PIDs query");
-        	               unset($this->PIDs[$k]);
-        	           }
-        	        }
-
-        	        $iteration = 1;
-        	    }
-        	    
-        	}
-            
+        	$pid = posix_getpid();
+            if ($this->PIDDir)
+            {
+            	$this->Logger->debug("Delete Process PID file {$pid}");
+            	@unlink("{$this->PIDDir}/{$pid}");
+            } 
+        	
         	$this->Logger->debug("All childs exited. Executing OnEndForking routine");
         	   
         	// Run routines after forking
-            $this->ProcessObject->OnEndForking();  
+            $this->ProcessObject->OnEndForking();
             
             $this->Logger->debug("Main process complete. Exiting...");
                 
@@ -251,7 +287,12 @@
 			}
 			else
 			{
-			    
+			    if ($this->PIDDir)
+			    { 
+			    	$this->Logger->debug("Touch thread PID file $pid");
+			    	touch($this->PIDDir."/".$pid);
+			    }
+			    	
 				$this->Logger->debug("Child with PID# {$pid} successfully forked");
                     
 			    $this->PIDs[] = $pid;

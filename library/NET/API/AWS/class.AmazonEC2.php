@@ -205,7 +205,7 @@
 	
 	class AmazonEC2 
     {
-	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2008-05-05.ec2.wsdl';
+	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2008-12-01.ec2.wsdl';
 	    const KEY_PATH = '/etc/awskey.pem';
 	    const CERT_PATH = '/etc/awscert.pem';
 	    const USER_AGENT = 'Libwebta AWS Client (http://webta.net)';
@@ -213,11 +213,40 @@
 	    
 		private $EC2SoapClient = NULL;
 		
-		public static $KeysFileDecryptObject = null;
+		private static $Instances;
 		
-		public function __construct($key = null, $cert = null, $isfile = false) 
+		/**
+		 * @return AmazonEC2
+		 */
+		public static function GetInstance($API_URL = 'https://ec2.amazonaws.com/')
 		{
-			
+			if (!self::$Instances[$API_URL])
+				self::$Instances[$API_URL] = new AmazonEC2($API_URL);
+			 
+			 return self::$Instances[$API_URL];
+		}
+		
+		public function __construct($api_url = 'https://ec2.amazonaws.com/') 
+		{
+	      	$this->EC2SoapClient  = new WSSESoapClient(AmazonEC2::EC2WSDL, array(
+	      		'connection_timeout' => self::CONNECTION_TIMEOUT, 
+	      		'trace' => true, 
+	      		'exceptions'=> false, 
+	      		'user_agent' => AmazonEC2::USER_AGENT)
+	      	);
+
+	      	/* Force location path - MUST INCLUDE trailing slash
+			BUG in ext/soap that does not automatically add / if URL does not contain path. this causes POST header to be invalid 
+			Seems like will be fixed in PHP 5.2 Release*/
+	      	
+	      	if (substr($api_url, -1) != '/')
+	      		$api_url = "{$api_url}/";
+	      	
+			$this->EC2SoapClient->location = $api_url;
+		}		
+		
+		public function SetAuthKeys($key = null, $cert = null, $isfile = false)
+		{
 			// Defaultize
 			if ($key == null || $cert == null)
 				$isfile = true;
@@ -225,20 +254,8 @@
 			$key = $key == null ? self::KEY_PATH : $key;
 			$cert = $cert == null ? self::CERT_PATH : $cert;
 			
-	      	$this->EC2SoapClient  = new WSSESoapClient(AmazonEC2::EC2WSDL, array(
-	      		'connection_timeout' => self::CONNECTION_TIMEOUT, 
-	      		'trace' => true, 
-	      		'exceptions'=> false, 
-	      		'user_agent' => AmazonEC2::USER_AGENT)
-	      	);
-	      		      	
-	      	$this->EC2SoapClient->SetAuthKeys($key, $cert, $isfile);
-	      	
-			/* Force location path - MUST INCLUDE trailing slash
-			BUG in ext/soap that does not automatically add / if URL does not contain path. this causes POST header to be invalid 
-			Seems like will be fixed in PHP 5.2 Release*/
-			$this->EC2SoapClient->location = 'https://ec2.amazonaws.com/';
-		}		
+			$this->EC2SoapClient->SetAuthKeys($key, $cert, $isfile);
+		}
 		
 		/*
 		 * 
@@ -439,7 +456,10 @@
 			try 
 			{
 				$stdClass = new stdClass();
-				$stdClass->snapshotSet = $snapshotId;
+				$stdClass->snapshotSet = null;
+				
+				if ($snapshotId)
+					$stdClass->snapshotSet->item->snapshotId = $snapshotId; 
 				
 				$response = $this->EC2SoapClient->DescribeSnapshots($stdClass);
 				
@@ -1091,6 +1111,29 @@
 		    try 
 		    {
 				$response = $this->EC2SoapClient->CreateKeyPair(array('keyName' => $keyName));
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);	
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * The RegisterImage operation registers an AMI with Amazon EC2. Images must be registered before they can be launched
+		 * @param string $imageLocation
+		 * @return stdClass
+		 */
+		public function RegisterImage($imageLocation)
+		{
+			try 
+		    {
+				$response = $this->EC2SoapClient->RegisterImage(array('imageLocation' => $imageLocation));
 				
 				if ($response instanceof SoapFault)
 					throw new Exception($response->faultstring, E_ERROR);

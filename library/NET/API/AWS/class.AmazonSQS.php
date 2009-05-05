@@ -54,6 +54,7 @@
 						
 			$timestamp = $this->GetTimestamp();
 			$URL = "queue.amazonaws.com";
+			//EU URL: eu-west-1.queue.amazonaws.com
 			
 			$args['Version'] = self::API_VERSION;
 			$args['SignatureVersion'] = 2;
@@ -100,6 +101,52 @@
             	
             	throw new Exception($message);
             }
+		}
+		
+		/**
+		 * The ListQueues action returns a list of your queues. 
+		 * @param string $queue_name_prefix
+		 * @return array
+		 */
+		public function ListQueues($queue_name_prefix = '')
+		{
+			$response = $this->Request("GET", "/", array("Action" => "ListQueues", "QueueNamePrefix" => $queue_name_prefix));
+			
+			$retval = (array)$response->ListQueuesResult;
+			
+			if (!is_array($retval['QueueUrl']))
+				$list = array($retval['QueueUrl']);
+			else
+				$list = $retval['QueueUrl'];
+				
+			foreach ($list as &$r)
+				$r = basename($r);
+			
+			return $list;
+		}
+		
+		/**
+		 * The GetQueueAttributes action gets one or all attributes of a queue.
+		 * @param string $queue_name
+		 * @param string $attribute
+		 * @return array
+		 */
+		public function GetQueueAttributes($queue_name, $attribute='All')
+		{
+			$response = $this->Request("GET", "/{$queue_name}", array("Action" => "GetQueueAttributes", "AttributeName" => $attribute));
+			$list = (array)$response->GetQueueAttributesResult;
+			
+			if (!is_array($list['Attribute']))
+				$list = array($list['Attribute']);
+			else
+				$list = $list['Attribute'];
+		
+			$retval = array();
+				
+			foreach ($list as $l)
+				$retval[(string)$l->Name] = (string)$l->Value;
+			
+			return $retval;
 		}
 		
 		/**

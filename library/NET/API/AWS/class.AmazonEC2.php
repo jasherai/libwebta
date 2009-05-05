@@ -205,7 +205,7 @@
 	
 	class AmazonEC2 
     {
-	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2008-12-01.ec2.wsdl';
+	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2009-03-01.ec2.wsdl';
 	    const KEY_PATH = '/etc/awskey.pem';
 	    const CERT_PATH = '/etc/awscert.pem';
 	    const USER_AGENT = 'Libwebta AWS Client (http://webta.net)';
@@ -600,7 +600,7 @@
 			try 
 			{
 				$stdClass = new stdClass();
-				$stdClass->publicIp = $ip_address;
+				$stdClass->publicIp = $public_ip;
 				
 				$response = $this->EC2SoapClient->DisassociateAddress($stdClass);
 				
@@ -1134,6 +1134,87 @@
 			try 
 		    {
 				$response = $this->EC2SoapClient->RegisterImage(array('imageLocation' => $imageLocation));
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);	
+			}
+	
+			return $response;
+		}
+		
+    	/**
+		 * The DeregisterImage operation deregisters an AMI. Once deregistered, instances of the AMI can no longer be launched. 
+		 * @param string $amiID
+		 * @return stdClass
+		 */
+		public function DeregisterImage($amiId)
+		{
+			try 
+		    {
+				$response = $this->EC2SoapClient->DeregisterImage(array('imageId' => $amiId));
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);	
+			}
+	
+			return $response;
+		}
+		
+		public function DescribeReservedInstancesOfferings()
+		{
+			try 
+		    {
+				$response = $this->EC2SoapClient->DescribeReservedInstancesOfferings();
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);	
+			}
+	
+			return $response;
+		}
+		
+		public function DescribeReservedInstances()
+		{
+			try 
+		    {
+				$response = $this->EC2SoapClient->DescribeReservedInstances();
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+				
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);	
+			}
+	
+			return $response;
+		}
+		
+		public function PurchaseReservedInstancesOffering($reservedInstancesOfferingId, $instanceCount = 1)
+		{
+			try 
+		    {
+				$req = new stdClass();
+				$req->reservedInstancesOfferingId = $reservedInstancesOfferingId;
+				$req->instanceCount = $instanceCount;
+				
+		    	$response = $this->EC2SoapClient->PurchaseReservedInstancesOffering($req);
 				
 				if ($response instanceof SoapFault)
 					throw new Exception($response->faultstring, E_ERROR);

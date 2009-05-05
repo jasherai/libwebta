@@ -73,7 +73,7 @@
 				$this->Error = true;
 			}
 
-			if (!preg_match("/^[A-Za-z]+$/", $service) && $service != '*')
+			if (!preg_match("/^[A-Za-z-]+$/", $service) && $service != '*')
 			{
 				self::RaiseWarning("'{$service}' is not a valid service name for SRV record");
 				$this->Error = true;

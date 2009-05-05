@@ -57,6 +57,7 @@
 				$name == "@" || 
 				$name === "" || 
 				$name == "*" ||
+				$this->Validator->MatchesPattern($name, "/^\*\.[A-Za-z0-9]+[A-Za-z0-9\-\.]+[A-Za-z]+\.$/") ||
 				$this->Validator->IsDomain($name)) && !$this->Validator->IsIPAddress(rtrim($name, "."))
 			   )
 				$this->Name = $name;

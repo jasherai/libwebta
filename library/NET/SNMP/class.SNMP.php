@@ -34,6 +34,12 @@
 		const DEFAULT_PORT = 161;
 		
 		/**
+		 * Default SNMPTrap port
+		 *
+		 */
+		const DEFAULT_TRAP_PORT = 162;
+		
+		/**
 		 * Connection timeout in milliseconds
 		 *
 		 */

@@ -118,11 +118,12 @@
         	return $this->ProcessName;
         }
         
-        function Launch($max_chinds = 5)
+        function Launch($max_chinds = 5, $child_exec_timeout = 0)
         {
             $proccess = new ReflectionClass("{$this->ProcessName}Process");
             $sig_handler = new ReflectionClass("SignalHandler");
             $PR = new ProcessManager($sig_handler->newInstance());
+            $PR->SetChildExecLimit($child_exec_timeout);
             $PR->SetMaxChilds($max_chinds);
             if ($this->PIDDir)
             	$PR->SetPIDDir($this->PIDDir);

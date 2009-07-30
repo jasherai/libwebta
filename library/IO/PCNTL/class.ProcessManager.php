@@ -64,6 +64,8 @@
         
         private $Logger;
         
+        private $ChildProcessExecTimeLimit = 0;
+        
         /**
          * Proccess manager Constructor
          *
@@ -84,6 +86,11 @@
             }
             else 
                 self::RaiseError("Invalid signal handler");  
+        }
+        
+        public function SetChildExecLimit($limit)
+        {
+        	$this->ChildProcessExecTimeLimit = $limit;
         }
         
         /**
@@ -165,11 +172,28 @@
 	        		if (count($this->PIDs) == 0)
 	        			break;
 	
+	        		if ($this->ChildProcessExecTimeLimit != 0)
+					{
+		        		foreach ($this->PIDs as $ipid=>$ipid_info)
+	        	        {
+							if ($ipid_info['start_time']+$this->ChildProcessExecTimeLimit < time())
+							{
+								$this->Logger->error(sprintf(
+									_("Maximum execution time of %s seconds exceeded in %s. Killing process..."),
+									$this->ChildProcessExecTimeLimit,
+									get_class($this->ProcessObject)."(Child PID: {$ipid_info['pid']})"
+								));
+								
+								posix_kill($ipid, SIGKILL);
+							}
+						}
+        	        }
+	        			
 	        		sleep(2);
 	        	    
 	        	    if ($iteration++ == 10)
 	        	    {
-	        	        $this->Logger->debug("Goin to MPWL. PIDs(".implode(", ", $this->PIDs).")");
+	        	        $this->Logger->debug("Goin to MPWL. PIDs(".implode(", ", array_keys($this->PIDs)).")");
 	        	        
 	        	        //
 	        	        // Zomby not needed.
@@ -180,38 +204,37 @@
 			    		{
 			    		    $this->Logger->debug("MPWL: pcntl_wait() from child with PID# {$pid} (Exit code: {$status})");
 			  
-			    		    foreach((array)$this->PIDs as $kk=>$vv)
+			    		    foreach((array)$this->PIDs as $ipid=>$ipid_info)
 			    			{
-			    				if ($vv == $pid)
+			    				if ($ipid == $pid)
 			    				{
 			    					if ($this->PIDDir)
 			    					{
 			    						$this->Logger->debug("Delete thread PID file $pid");
 			    						@unlink($this->PIDDir . "/" . $pid);
 			    					}
-			    					unset($this->PIDs[$kk]);
+			    					unset($this->PIDs[$ipid]);
 			    				}
 			    			}
 			    			
 			    			$this->ForkThreads();
 			    		}
 	        	        
-	        	        foreach ($this->PIDs as $k=>$pid)
+	        	        foreach ($this->PIDs as $ipid=>$ipid_info)
 	        	        {
-	        	           $res = posix_kill($pid, 0);
-	        	           $this->Logger->debug("MPWL: Sending 0 signal to {$pid} = ".intval($res));
-	        	           
-	        	           if ($res === FALSE)
-	        	           {
-	        	               $this->Logger->debug("MPWL: Deleting '{$pid}' from PIDs query");
-	        	               
+	        	           	$res = posix_kill($ipid, 0);
+	        	           	$this->Logger->debug("MPWL: Sending 0 signal to {$ipid} = ".intval($res));
+	        	                              
+							if ($res === FALSE)
+							{
+                       			$this->Logger->debug("MPWL: Deleting '{$ipid}' from PIDs queue");
 		                   		if ($this->PIDDir)
-		    					{
-		    						$this->Logger->debug("Delete thread PID file {$this->PIDs[$k]}");
-		    						@unlink($this->PIDDir . "/" . $this->PIDs[$k]);
-		    					}
-	        	               	unset($this->PIDs[$k]);
-	        	           }
+    							{
+    								$this->Logger->debug("Delete thread PID file {$ipid}");
+    								@unlink($this->PIDDir . "/" . $ipid);
+    							}
+                       			unset($this->PIDs[$ipid]);
+                   			}
 	        	        }
 	
 	        	        $iteration = 1;
@@ -295,7 +318,10 @@
 			    	
 				$this->Logger->debug("Child with PID# {$pid} successfully forked");
                     
-			    $this->PIDs[] = $pid;
+			    $this->PIDs[$pid] = array(
+			    	"start_time" 	=> time(),
+			    	"pid"			=> $pid
+			    );
 			}
         }
         

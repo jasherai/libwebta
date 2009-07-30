@@ -557,7 +557,10 @@
 			if ($this->Transport == "ssh")
 			{
 				$retval = $this->SSH2->Exec("{$this->Rndc} status");
-			
+				
+				$this->Logger->info("Execute rndc status");
+				$this->Logger->info("Result: {$retval}");
+				
 				preg_match_all("/number of zones:[^0-9]([0-9]+)/", $retval, $matches);
 			
 				if ($matches[1][0] > 0)

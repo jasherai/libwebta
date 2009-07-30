@@ -132,6 +132,8 @@
 	
 			$created = $this->SOAPDoc->createElementNS(WSSESoap::WSUNS,  WSSESoap::WSUPFX.':Created', $createdate);
 			$token->appendChild($created);
+			
+			return $token;
 		}
 	
 		public function addBinaryToken($cert, $isPEMFormat=TRUE, $isDSig=TRUE) {

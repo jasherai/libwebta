@@ -93,16 +93,16 @@
     		{
     		    $this->Logger->debug("Application received signal {$signal} from child with PID# {$pid} (Exit code: {$status})");
   
-    		    foreach((array)$this->ProcessManager->PIDs as $kk=>$vv)
+    		    foreach((array)$this->ProcessManager->PIDs as $ipid=>$ipid_info)
     			{
-    				if ($vv == $pid)
+    				if ($ipid == $pid)
     				{
-    					unset($this->ProcessManager->PIDs[$kk]);
+    					unset($this->ProcessManager->PIDs[$ipid]);
     					
     					if ($this->ProcessManager->PIDDir)
     					{
-    						$this->Logger->debug("Delete thread PID file $pid");
-    						@unlink($this->ProcessManager->PIDDir . "/" . $pid);
+    						$this->Logger->debug("Delete thread PID file $ipid");
+    						@unlink($this->ProcessManager->PIDDir . "/" . $ipid);
     					}
     						
     					$known_child = true;

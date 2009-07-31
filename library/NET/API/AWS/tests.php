@@ -37,15 +37,15 @@
         {
         	$this->UnitTestCase('AWS tests');
             $this->AmazonEC2 = new AmazonEC2(
-            APPPATH . "/etc/pk-UIBAE6UUI6KM4GULBKP5BDLM7SOHTMN3.pem", 
-            APPPATH . "/etc/cert-UIBAE6UUI6KM4GULBKP5BDLM7SOHTMN3.pem");
+            APPPATH . "/etc/pk-.pem", 
+            APPPATH . "/etc/cert-.pem");
             
-            $this->AWSAccountID = "788921246207";
+            $this->AWSAccountID = "";
         }
         
         function _testS3Bucket()
         {
-            $AmazonS3 = new AmazonS3("0EJNVE9QFYY3TD554T02", "VOtWnbI2PmsqKOqDNVVgfLVsEnGD/6miiYDY552S");
+            $AmazonS3 = new AmazonS3("", "");
             $res = $AmazonS3->ListBuckets();            
             $this->assertTrue(is_array($res->Bucket), "ListBuckets returned array");
             

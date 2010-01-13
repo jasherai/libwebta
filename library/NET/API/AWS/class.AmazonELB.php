@@ -93,6 +93,7 @@
 	    
 		private $AWSAccessKeyId = NULL;
 		private $AWSAccessKey = NULL;
+		private $Region = 'us-east-1';
 		private $LastResponseHeaders = array();
 		private static $Instance;
 		
@@ -115,6 +116,12 @@
 			
 			if (!function_exists("hash_hmac"))
                 throw new Exception("hash_hmac() function not found. Please install HASH Pecl extension.", E_ERROR);
+		}
+		
+		public function SetRegion($region)
+		{
+			if (in_array($region, array('us-east-1', 'eu-west-1', 'us-west-1')))
+				$this->Region = $region;	
 		}
 		
 		private function GetRESTSignature($params)
@@ -144,7 +151,7 @@
 			                              );
 						
 			$timestamp = $this->GetTimestamp();
-			$URL = "elasticloadbalancing.amazonaws.com";
+			$URL = "{$this->Region}.elasticloadbalancing.amazonaws.com";
 						
 			$args['Version'] = self::API_VERSION;
 			$args['SignatureVersion'] = 2;

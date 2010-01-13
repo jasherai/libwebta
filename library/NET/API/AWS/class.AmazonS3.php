@@ -449,7 +449,7 @@
 		 * @param string $bucket_name
 		 * @return string 
 		 */
-		public function CreateBucket($bucket_name, $put_to_europe = false)
+		public function CreateBucket($bucket_name, $region = 'us-east-1')
 		{
 			$HttpRequest = new HttpRequest();
 			
@@ -460,11 +460,20 @@
 						
 			$timestamp = $this->GetTimestamp(true);
 			
-			
-			if ($put_to_europe)
-				$request = "<CreateBucketConfiguration><LocationConstraint>EU</LocationConstraint></CreateBucketConfiguration>";
-			else
-				$request = "";
+			switch($region)
+			{
+				case "us-east-1":
+					$request = "";
+					break;	
+					
+				case "us-west-1":
+					$request = "<CreateBucketConfiguration><LocationConstraint>us-west-1</LocationConstraint></CreateBucketConfiguration>";
+					break;
+				
+				case "eu-west-1":
+					$request = "<CreateBucketConfiguration><LocationConstraint>EU</LocationConstraint></CreateBucketConfiguration>";
+					break;
+			}
 			
 			$data_to_sign = array("PUT", "", "", $timestamp, "/{$bucket_name}/");
 			

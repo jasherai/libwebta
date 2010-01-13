@@ -18,6 +18,229 @@
 
 	Core::Load("NET/API/AWS/WSSESoapClient");
 	
+	class EbsBlockDeviceType
+	{
+		public $deleteOnTermination;
+		public $snapshotId;
+		public $volumeSize;
+		
+			
+		public function _construct($deleteOnTermination = true,$snapshotId = false,$volumeSize = false)
+		{
+			$this->deleteOnTermination = $deleteOnTermination;
+			$this->snapshotId = $snapshotId;
+			$this->volumeSize = $volumeSize;
+			
+		}
+	};
+	
+	class BlockDeviceMappingItemType
+	{
+		public $deviceName;
+		public $ebs;
+		public $noDevice;
+		public $virtualName;
+		
+		public function _construct(EbsBlockDeviceType $ebs, 
+											$noDevice = null,
+		 									$virtualName = null)
+		{			
+			if(!$ebs)
+			{
+				$this->noDevice = stdClass();
+				$this->noDevice->none = true;
+			}			
+			else
+			{
+				$this->ebs = $ebs;
+				$this->deviceName = '/dev/sdx';;
+				$this->virtualName = $virtualName;
+			}
+		}
+		
+	};
+	
+	class  LaunchSpecificationType
+	{
+		public $imageId;
+		public $keyName;
+		public $groupSet;
+		public $userData;
+		public $addressingType;
+		public $instanceType;
+		public $placement;
+		public $kernelId;
+		public $ramdiskId;
+		public $blockDeviceMapping;
+		public $monitoring;
+		public $subnetId;
+			
+		public function __construct($imageId,
+										$keyName = null,
+										$groupSet = null,
+										$userData = null,
+										$addressingType = null,
+										$instanceType = null,
+										$placement = null,
+										$kernelId = null,
+										$ramdiskId = null,
+				BlockDeviceMappingType $blockDeviceMapping = null,
+										$monitoring = null,
+										$subnetId = null)
+		{					
+			
+			$this->imageId 	= $imageId;
+			$this->keyName 	= $keyName;	
+			$this->addressingType 	= $addressingType;
+			$this->instanceType 	= $instanceType;		
+			$this->kernelId = $kernelId;
+			$this->ramdiskId = $ramdiskId;		
+			$this->subnetId = $subnetId;
+			
+			
+			if(isset($userData))
+			{
+				$this->userData = new stdClass();
+				$this->userData->data =  $userData;
+			}
+			
+			if(isset($blockDeviceMapping))
+			{
+				$this->blockDeviceMapping = stdClass();
+				$this->blockDeviceMapping->item = array();
+				
+				foreach ($blockDeviceMapping as $item)
+				{
+					$this->blockDeviceMapping->item[] = $item;
+				}
+			}						
+			
+			if(isset($placement))
+			{
+				$this->placement = new stdClass();
+				$this->placement->availabilityZone = $placement;	
+			}
+			
+			if(isset($monitoring))
+			{
+				$this->monitoring 	= new stdClass;
+				$this->monitoring->enabled = $monitoring;
+			}
+						
+			if(isset($groupSet))
+			{
+				$this->groupSet = new stdClass();		
+				$this->groupSet->item = array();
+				
+				foreach ($groupSet as $id)
+				{
+					$this->groupSet->item[]->groupId = $id;
+				}
+			}		
+		}		
+	};
+	
+	class RequestSpotInstancesType
+	{		
+		public $spotPrice;
+		public $instanceCount;
+		public $type;
+		public $validFrom;
+		public $validUntil;
+		public $launchGroup;
+		public $launchSpecification;
+		public $availabilityZoneGroup;
+		
+				
+		public function __construct($spotPrice, $instanceCount 	= null, 
+												$type 			= null,
+				 								$validFrom 		= null,
+				  								$validUntil 	= null,
+				   								$launchGroup 	= null,
+				   								$availabilityZoneGroup = null,
+	  					LaunchSpecificationType $launchSpecification = null)
+		{		
+			
+			$this->spotPrice = $spotPrice;
+			$this->instanceCount = $instanceCount;
+			$this->type 		= $type;
+			$this->validFrom 	= $validFrom;
+			$this->validUntil 	= $validUntil;
+			$this->launchGroup 	= $launchGroup;
+			$this->launchSpecification = $launchSpecification;
+		}
+	};
+	class DescribeSpotPriceHistoryType
+	{
+		public $startTime;
+		public $endTime;
+		public $instanceTypeSet;	
+		public $productDescriptionSet;
+
+		public function __construct($startTime = null,$instanceTypeSet = array(),$productDescriptionSet = null, $endTime = null)
+		{					
+			$this->startTime = $startTime;
+			$this->endTime = $endTime;			
+			
+			if(isset($instanceTypeSet))
+			{
+				$this->instanceTypeSet = new stdClass();	
+				$this->instanceTypeSet->item = array();
+				foreach ($instanceTypeSet as $instanceType)
+				{
+					$this->instanceTypeSet->item[]->instanceType = $instanceType;
+				}
+			}
+			if(isset($productDescriptionSet))
+			{
+				$this->productDescriptionSet = new stdClass();
+				$this->productDescriptionSet->item = array();
+				foreach ($productDescriptionSet as $productDescription)
+				{
+					$this->productDescriptionSet->item[]->productDescription = $productDescription;
+				}
+			}	
+		}
+	};
+	
+	class CancelSpotInstanceRequestsType
+	{
+		public $spotInstanceRequestIdSet;	
+			
+		public function __construct($spotInstanceRequestIds = array())
+		{					
+			$this->spotInstanceRequestIdSet = new stdClass();		
+			
+			if(isset($spotInstanceRequestIds))
+			{
+				$this->spotInstanceRequestIdSet->item = array();
+				foreach ($spotInstanceRequestIds as $id)
+				{
+					$this->spotInstanceRequestIdSet->item[]->spotInstanceRequestId = $id;
+				}
+			}		
+		}	
+	};
+	
+	class DescribeSpotInstanceRequestsType
+	{			
+		public $spotInstanceRequestIdSet;	
+		
+		public function __construct($spotInstanceRequestIds = array())
+		{					
+			$this->spotInstanceRequestIdSet = new stdClass();		
+					
+			if(isset($spotInstanceRequestIds))
+			{
+				$this->spotInstanceRequestIdSet->item = array();
+				foreach ($spotInstanceRequestIds as $id)
+				{
+					$this->spotInstanceRequestIdSet->item[]->spotInstanceRequestId = $id;
+				}
+			}		
+		}
+	};
+	
 	class DescribeInstancesType
 	{
 		public $instancesSet;
@@ -120,6 +343,24 @@
 		}
 	}
 	
+	class MonitorInstancesType
+	{
+		public $instancesSet;
+		
+		public function __construct()
+		{
+			$this->instancesSet = new stdClass();
+			$this->instancesSet->item = array();
+		}
+		
+		public function AddInstance($instance_id)
+		{
+			$item = new stdClass();
+			$item->instanceId = $instance_id;
+			$this->instancesSet->item[] = $item;
+		}
+	}
+	
 	class RunInstancesType
 	{
 	    public $imageId;
@@ -129,9 +370,41 @@
 	    public $groupSet;
 	    public $additionalInfo = "";
 	    public $userData;
-	    public $addressingType = "public";
 	    public $instanceType = "";
+	    public $monitoring;
+	    public $blockDeviceMapping;
 	    public $placement;
+	    
+	    public function ConfigureRootPartition($use_ebs = false, $snapshotId = false, $volumeSize = false, $deleteOnTermination = true)
+	    {
+	    	$this->blockDeviceMapping = new stdClass();
+	    	if (!$use_ebs)
+	    	{
+	    		$this->blockDeviceMapping->item = new stdClass();
+	    		$this->blockDeviceMapping->item->noDevice = true;	
+	    	}
+	    	else
+	    	{
+	    		$this->blockDeviceMapping->item = array();
+	    		$itm = new stdClass();
+	    		$itm->deviceName = '/dev/sdx';
+	    		$itm->ebs = new stdClass();
+	    		
+	    		if ($snapshotId)
+	    			$itm->ebs->snapshotId = $snapshotId;
+	    			
+	    		if ($volumeSize)
+	    			$itm->ebs->volumeSize = $volumeSize;
+	    			
+	    		$itm->ebs->deleteOnTermination = $deleteOnTermination;
+	    	}
+	    }
+	    
+	    public function SetCloudWatchMonitoring($isenabled)
+	    {
+	    	$this->monitoring = new stdClass();
+	    	$this->monitoring->enabled = (bool)$isenabled;
+	    }
 	    
 	    public function SetAvailabilityZone($zoneName)
 	    {
@@ -204,8 +477,9 @@
      */	    
 	
 	class AmazonEC2 
-    {
-	    const EC2WSDL = 'http://s3.amazonaws.com/ec2-downloads/2009-03-01.ec2.wsdl';
+    {		
+	    const EC2WSDL = 'http://ec2.amazonaws.com/doc/2009-11-30/AmazonEC2.wsdl'; //previos version http://ec2.amazonaws.com/doc/2009-10-31/AmazonEC2.wsdl
+	    const EC2WSDL_LOCAL = '/etc/aws/wsdl/2009-10-31.ec2.wsdl';
 	    const KEY_PATH = '/etc/awskey.pem';
 	    const CERT_PATH = '/etc/awscert.pem';
 	    const USER_AGENT = 'Libwebta AWS Client (http://webta.net)';
@@ -218,7 +492,7 @@
 		/**
 		 * @return AmazonEC2
 		 */
-		public static function GetInstance($API_URL = 'https://ec2.amazonaws.com/')
+	    public static function GetInstance($API_URL = 'https://ec2.amazonaws.com/')		
 		{
 			if (!self::$Instances[$API_URL])
 				self::$Instances[$API_URL] = new AmazonEC2($API_URL);
@@ -226,9 +500,14 @@
 			 return self::$Instances[$API_URL];
 		}
 		
-		public function __construct($api_url = 'https://ec2.amazonaws.com/') 
+		public function __construct($api_url = 'https://ec2.amazonaws.com/') 		
 		{
-	      	$this->EC2SoapClient  = new WSSESoapClient(AmazonEC2::EC2WSDL, array(
+	      	if (file_exists(self::EC2WSDL_LOCAL))
+	      		$wsdl = self::EC2WSDL_LOCAL;
+	      	else
+	      		$wsdl = self::EC2WSDL;
+			
+			$this->EC2SoapClient  = new WSSESoapClient($wsdl, array(
 	      		'connection_timeout' => self::CONNECTION_TIMEOUT, 
 	      		'trace' => true, 
 	      		'exceptions'=> false, 
@@ -256,6 +535,59 @@
 			
 			$this->EC2SoapClient->SetAuthKeys($key, $cert, $isfile);
 		}
+		
+		/*
+		 * 
+		 * 
+		 * CloudWatch
+		 * 
+		 * 
+		 */
+		
+		/**
+		 * Enables monitoring for a running instance. For more information, refer to the Amazon CloudWatch Developer Guide.
+		 * @param MonitorInstancesType $MonitorInstancesType
+		 * @return object
+		 */
+		public function MonitorInstances(MonitorInstancesType $MonitorInstancesType)
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->MonitorInstances($MonitorInstancesType);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
+		/**
+		 * Disables monitoring for a running instance. For more information, refer to the Amazon CloudWatch Developer Guide.
+		 * @param MonitorInstancesType $MonitorInstancesType
+		 * @return object
+		 */
+    	public function UnmonitorInstances(MonitorInstancesType $MonitorInstancesType)
+		{
+			try 
+			{
+				$response = $this->EC2SoapClient->UnmonitorInstances($MonitorInstancesType);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);
+			}
+	
+			return $response;
+		}
+		
 		
 		/*
 		 * 
@@ -1227,5 +1559,135 @@
 	
 			return $response;
 		}
+    
+    
+    //------------------------------------------   Spot Instances
+    	public function  CancelSpotInstanceRequests(CancelSpotInstanceRequestsType $SpotInstanceRequests)
+		{
+			try 
+			    {		    	
+					$response = $this->EC2SoapClient->CancelSpotInstanceRequests($SpotInstanceRequests);
+					
+					if ($response instanceof SoapFault)
+						throw new Exception($response->faultstring, E_ERROR);					
+				} 
+				catch (SoapFault $e) 
+				{
+				    throw new Exception($e->getMessage(), E_ERROR);	
+				}
+		
+				return $response;
+		}
+	    public function CreateSpotDatafeedSubscription($bucket, $prefix = null)
+		{
+			try 
+		    {
+		    	$req = new stdClass();
+		    	$req->bucket = $bucket;
+		    	$req->prefix = $prefix;		    	
+		    	
+				$response = $this->EC2SoapClient->CreateSpotDatafeedSubscription($req);
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);					
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);	
+			}		
+			return $response;
+		}	  
+			
+		public function DeleteSpotDatafeedSubscription()
+		{
+			try 
+		    {		    	
+				$response = $this->EC2SoapClient->DeleteSpotDatafeedSubscription();
+				
+				if ($response instanceof SoapFault)
+					throw new Exception($response->faultstring, E_ERROR);					
+			} 
+			catch (SoapFault $e) 
+			{
+			    throw new Exception($e->getMessage(), E_ERROR);	
+			}
+	
+			return $response;
+		}	  
+			
+		public function DescribeSpotDatafeedSubscription()
+		{		
+				try 
+			    {		    	
+					$response = $this->EC2SoapClient->DescribeSpotDatafeedSubscription();
+					
+					if ($response instanceof SoapFault)
+						throw new Exception($response->faultstring, E_ERROR);					
+				} 
+				catch (SoapFault $e) 
+				{
+				    throw new Exception($e->getMessage(), E_ERROR);	
+				}
+		
+				return $response;
+		}	  	
+		
+		public function DescribeSpotInstanceRequests(DescribeSpotInstanceRequestsType $SpotInstanceRequests)
+		{
+			try 
+			    {		    	
+					$response = $this->EC2SoapClient->DescribeSpotInstanceRequests($SpotInstanceRequests);
+					
+					if ($response instanceof SoapFault)
+						throw new Exception($response->faultstring, E_ERROR);					
+				} 
+				catch (SoapFault $e) 
+				{
+				    throw new Exception($e->getMessage(), E_ERROR);	
+				}
+		
+				return $response;
+		
+		}
+		
+   		public function DescribeSpotPriceHistory(DescribeSpotInstanceRequestsType $DescribeSpotPriceHistoryType)
+		{
+			try 
+			    {		    	
+					$response = $this->EC2SoapClient->DescribeSpotPriceHistory($DescribeSpotPriceHistoryType);
+					
+					if ($response instanceof SoapFault)
+						throw new Exception($response->faultstring, E_ERROR);					
+				} 
+				catch (SoapFault $e) 
+				{
+				    throw new Exception($e->getMessage(), E_ERROR);	
+				}
+		
+				return $response;
+		
+		}
+    	
+		
+		public function RequestSpotInstances(RequestSpotInstancesType $RequestSpotInstancesType)
+		{
+			try 
+			    {	   	
+					
+			    	$response = $this->EC2SoapClient->RequestSpotInstances($RequestSpotInstancesType);
+					
+					if ($response instanceof SoapFault)
+						throw new Exception($response->faultstring, E_ERROR);					
+				} 
+				catch (SoapFault $e) 
+				{
+				    throw new Exception($e->getMessage(), E_ERROR);	
+				}
+		
+				return $response;
+		
+		}
+		
+		
     }
 ?>

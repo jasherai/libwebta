@@ -2,13 +2,14 @@
 
 	class AmazonSQS
 	{
-		const API_VERSION 	= "2008-01-01";
+		const API_VERSION 	= "2009-02-01";
 		const HASH_ALGO 	= 'SHA1';
 		const USER_AGENT 	= 'Libwebta AWS Client (http://webta.net)';
 	    
 		private $AWSAccessKeyId = NULL;
 		private $AWSAccessKey = NULL;
 		private $LastResponseHeaders = array();
+		private $Region = 'us-east-1';
 		private static $Instance;
 		
 		public static function GetInstance($AWSAccessKeyId, $AWSAccessKey)
@@ -43,6 +44,12 @@
 		    return date("c", time()+3600);
 		}
 		
+		public function SetRegion($region)
+		{ // only US region is available now
+			if (in_array($region, array('us-east-1', 'eu-west-1', 'us-west-1')))
+				$this->Region = $region;	
+		}
+		
 		private function Request($method, $uri, $args)
 		{
 			$HttpRequest = new HttpRequest();
@@ -54,6 +61,8 @@
 						
 			$timestamp = $this->GetTimestamp();
 			$URL = "queue.amazonaws.com";
+			if ($this->Region != 'us-east-1')
+				$URL = "{$this->Region}.queue.amazonaws.com";
 			//EU URL: eu-west-1.queue.amazonaws.com
 			
 			$args['Version'] = self::API_VERSION;

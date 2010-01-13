@@ -736,8 +736,9 @@ class Getopt extends Core
         }
         if (!isset($this->_ruleMap[$flag])) 
         {
-            $this->PrintError(
-                "Option \"$flag\" is not recognized.");
+            return;
+        	//$this->PrintError(
+            //   "Option \"$flag\" is not recognized.");
         }
         $realFlag = $this->_ruleMap[$flag];
         switch ($this->_rules[$realFlag]['param']) 

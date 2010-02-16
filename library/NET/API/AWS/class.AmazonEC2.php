@@ -251,12 +251,33 @@
 	{
 		public $executableBySet = null;
 		public $imagesSet = null;
-		public $ownersSet = null;
+		public $ownersSet;
+		
+		public function __construct($executableBySet,$imagesSet,$ownersSet = array())
+		{
+			
+			$this->executableBySet 	= $executableBySet;
+			$this->imagesSet		= $imagesSet;
+			
+			
+			$this->ownersSet = new stdClass();
+			$this->ownersSet->item = array();
+			foreach($ownersSet as $owner)
+			{
+				$this->ownersSet->item[] = new DescribeImagesOwnerType($owner);
+			}		
+			
+		}
 	};
 	
-	class DescribeImagesOwnersType
+	class DescribeImagesOwnerType
 	{
 		public $owner;
+		
+		public function __construct($owner)
+		{
+			$this->owner = $owner;
+		}
 	};
 	
 	class DescribeImageAttributeType
